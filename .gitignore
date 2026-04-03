@@ -7,7 +7,7 @@ __pycache__/
 venv/
 
 # Models (auto-generated on first run)
-models/
+
 
 # Streamlit
 .streamlit/secrets.toml
