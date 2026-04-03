@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-from datetime import datetime
 
 # ====================== МОДЕЛЬ ======================
 class FloodModel(nn.Module):
@@ -39,22 +38,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ====================== ЗАГРУЗКА / СОЗДАНИЕ МОДЕЛИ ======================
+# ====================== СОЗДАНИЕ / ЗАГРУЗКА МОДЕЛИ ======================
 @st.cache_resource
 def load_or_create_model():
     os.makedirs("models", exist_ok=True)
-    
     model_path = "models/flood_model.pt"
     scaler_path = "models/scaler.pkl"
-    feature_path = "models/feature_columns.pkl"
 
-    # Если файлов нет — создаём
+    # Если модель ещё не создана — создаём
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
         st.info("Первый запуск: создаём модель и scaler...")
         
         np.random.seed(42)
-        CITIES = ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь",
-                  "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]
+        CITIES = ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]
         n = 5000
         
         df = pd.DataFrame({
@@ -75,6 +71,7 @@ def load_or_create_model():
         city_dummies = pd.get_dummies(df["city"], prefix="city")
         df = pd.concat([df.drop("city", axis=1), city_dummies], axis=1)
         
+        # Жёстко заданный порядок колонок
         feature_columns = [
             "temperature", "rain", "snow", "soil_moisture", "river_level",
             "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river"
@@ -87,18 +84,22 @@ def load_or_create_model():
         X_scaled = scaler.fit_transform(X)
         
         joblib.dump(scaler, scaler_path)
-        joblib.dump(feature_columns, feature_path)
         
         model = FloodModel(input_dim=len(feature_columns))
         torch.save(model, model_path)
         
-        st.success("Модель и scaler успешно созданы!")
+        st.success("Модель успешно создана!")
     
-    # Загружаем (теперь файлы точно существуют)
+    # Загружаем готовые файлы
     model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     model.eval()
     scaler = joblib.load(scaler_path)
-    feature_columns = joblib.load(feature_path)
+    
+    # Жёстко заданный список колонок (чтобы не было ошибки)
+    feature_columns = [
+        "temperature", "rain", "snow", "soil_moisture", "river_level",
+        "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river"
+    ] + [f"city_{c}" for c in ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]]
     
     return model, scaler, feature_columns
 
