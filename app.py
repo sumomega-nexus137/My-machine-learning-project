@@ -1,26 +1,44 @@
 import streamlit as st
 import torch
+import torch.nn as nn
 import pandas as pd
+import numpy as np
 import joblib
 from datetime import datetime, timedelta
-import numpy as np
-import plotly.graph_objects as go
 import os
 
-st.set_page_config(page_title="ARGUS • Паводки", layout="wide")
+# ====================== МОДЕЛЬ ======================
+class FloodModel(nn.Module):
+    def __init__(self, input_dim=18):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 1)
+        )
+    
+    def forward(self, x):
+        return self.net(x)
 
-# Многоязычность
+# ====================== МНОГОЯЗЫЧНОСТЬ ======================
 translations = {
     "ru": {"title": "ARGUS • Прогноз паводков", "subtitle": "Акмолинская область", "select_city": "Выберите город", "temperature": "Температура воздуха, °C", "rain": "Осадки (дождь), мм", "snow": "Снежный покров, см", "soil": "Влажность почвы (0–1)", "river": "Уровень реки, см", "calculate": "Рассчитать риск", "risk": "Риск затопления", "low": "Низкий риск", "medium": "Средний риск", "high": "Высокий риск", "timeline": "Прогноз на 7 дней", "authors": "Разработано: Шамшидовым Мирасом и Бексултаном Абдыхалыком", "supervisor": "Научный руководитель: Ольга Шорникова Николаевна", "year": "2026"},
     "kk": {"title": "ARGUS • Су тасқыны болжамы", "subtitle": "Ақмола облысы", "select_city": "Қала немесе ауданды таңдаңыз", "temperature": "Ауа температурасы, °C", "rain": "Жаңбыр, мм", "snow": "Қар қабаты, см", "soil": "Топырақ ылғалдылығы (0–1)", "river": "Өзен деңгейі, см", "calculate": "Су басу қаупін есептеу", "risk": "Су басу қаупі", "low": "Төмен қауіп", "medium": "Орташа қауіп", "high": "Жоғары қауіп", "timeline": "7 күнге болжам", "authors": "Әзірлеген: Мирас Шамшидов және Бексұлтан Абдыхалық", "supervisor": "Ғылыми жетекші: Ольга Шорникова Николаевна", "year": "2026"},
     "en": {"title": "ARGUS • Flood Prediction", "subtitle": "Akmola Region", "select_city": "Select city", "temperature": "Air temperature, °C", "rain": "Rainfall, mm", "snow": "Snow cover, cm", "soil": "Soil moisture (0–1)", "river": "River level, cm", "calculate": "Calculate risk", "risk": "Flood risk", "low": "Low risk", "medium": "Medium risk", "high": "High risk", "timeline": "7-day forecast", "authors": "Developed by: Miras Shamshidov and Beksultan Abdykhalyk", "supervisor": "Scientific supervisor: Olga Shornikova Nikolaevna", "year": "2026"}
 }
 
-lang = st.sidebar.selectbox("Язык / Тіл / Language", ["Русский", "Қазақша", "English"])
-lang_code = {"Русский": "ru", "Қазақша": "kk", "English": "en"}[lang]
-t = translations[lang_code]
-
-# Стили
+# ====================== СТИЛИ ======================
+st.set_page_config(page_title="ARGUS", layout="wide")
 st.markdown("""
 <style>
     .stApp {background: linear-gradient(180deg, #0f172a, #1e2937);}
@@ -28,42 +46,86 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Загрузка модели и scaler
+# ====================== ЗАГРУЗКА / СОЗДАНИЕ МОДЕЛИ ======================
 @st.cache_resource
-def load_model_and_scaler():
-    model = torch.load("models/flood_model.pt", map_location=torch.device('cpu'), weights_only=False)
+def load_or_create_model():
+    model_path = "models/flood_model.pt"
+    scaler_path = "models/scaler.pkl"
+    
+    os.makedirs("models", exist_ok=True)
+    
+    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
+        st.info("Первый запуск: создаём модель и scaler...")
+        
+        # Создаём синтетический датасет
+        np.random.seed(42)
+        CITIES = ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]
+        n = 5000
+        df = pd.DataFrame({
+            "temperature": np.random.normal(3.5, 12, n),
+            "rain": np.random.exponential(8, n).clip(0, 55),
+            "snow": np.random.exponential(15, n).clip(0, 45),
+            "soil_moisture": np.random.beta(3, 2, n),
+            "river_level": np.random.normal(52, 9, n).clip(35, 75),
+            "city": np.random.choice(CITIES, n)
+        })
+        
+        df["snow_melt"] = np.maximum(0, df["temperature"]) * df["snow"] * 0.12
+        df["precip_3d"] = df["rain"] * 3
+        df["precip_7d"] = df["rain"] * 7
+        df["temp_rain_inter"] = df["temperature"] * df["rain"]
+        df["soil_river"] = df["soil_moisture"] * df["river_level"]
+        
+        city_dummies = pd.get_dummies(df["city"], prefix="city")
+        df = pd.concat([df.drop("city", axis=1), city_dummies], axis=1)
+        
+        # Признаки
+        feature_cols = [col for col in df.columns if col != "city"]
+        X = df[feature_cols]
+        
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        
+        joblib.dump(scaler, scaler_path)
+        
+        # Создаём и сохраняем модель
+        model = FloodModel(input_dim=X_scaled.shape[1])
+        torch.save(model, model_path)
+        st.success("Модель и scaler успешно созданы!")
+    
+    model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     model.eval()
-    scaler = joblib.load("models/scaler.pkl")
+    scaler = joblib.load(scaler_path)
     return model, scaler
 
-model, scaler = load_model_and_scaler()
+model, scaler = load_or_create_model()
 
-# Sidebar
+# ====================== ИНТЕРФЕЙС ======================
+lang = st.sidebar.selectbox("Язык / Тіл / Language", ["Русский", "Қазақша", "English"])
+lang_code = {"Русский": "ru", "Қазақша": "kk", "English": "en"}[lang]
+t = translations[lang_code]
+
 with st.sidebar:
     st.title("ARGUS")
     city = st.selectbox(t["select_city"], ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"])
 
-# Главная часть
 st.title(t["title"])
 st.subheader(f"{t['subtitle']} — {city}")
 
 col1, col2, col3 = st.columns(3)
-with col1:
-    temp = st.slider(t["temperature"], -35.0, 40.0, 5.0)
-with col2:
-    rain = st.slider(t["rain"], 0.0, 60.0, 5.0)
-with col3:
-    snow = st.slider(t["snow"], 0.0, 45.0, 0.0)
+with col1: temp = st.slider(t["temperature"], -35.0, 40.0, 5.0)
+with col2: rain = st.slider(t["rain"], 0.0, 60.0, 5.0)
+with col3: snow = st.slider(t["snow"], 0.0, 45.0, 0.0)
 
 col4, col5 = st.columns(2)
-with col4:
-    soil = st.slider(t["soil"], 0.0, 1.0, 0.3)
-with col5:
-    river = st.slider(t["river"], 35.0, 80.0, 50.0)
+with col4: soil = st.slider(t["soil"], 0.0, 1.0, 0.3)
+with col5: river = st.slider(t["river"], 35.0, 80.0, 50.0)
 
 if st.button(t["calculate"], type="primary", use_container_width=True):
     input_dict = {
-        "temperature": temp, "rain": rain, "snow": snow, "soil_moisture": soil, "river_level": river,
+        "temperature": temp, "rain": rain, "snow": snow,
+        "soil_moisture": soil, "river_level": river,
         "snow_melt": max(0, temp) * snow * 0.12,
         "precip_3d": rain * 3, "precip_7d": rain * 7,
         "temp_rain_inter": temp * rain, "soil_river": soil * river
