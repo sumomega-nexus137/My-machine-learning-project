@@ -44,57 +44,60 @@ def load_or_create_model():
     os.makedirs("models", exist_ok=True)
     model_path = "models/flood_model.pt"
     scaler_path = "models/scaler.pkl"
-
-    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
-        st.info("Первый запуск: создаём модель...")
-        np.random.seed(42)
-        CITIES = ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]
-        n = 5000
-        
-        df = pd.DataFrame({
-            "temperature": np.random.normal(3.5, 12, n),
-            "rain": np.random.exponential(8, n).clip(0, 55),
-            "snow": np.random.exponential(15, n).clip(0, 45),
-            "soil_moisture": np.random.beta(3, 2, n),
-            "river_level": np.random.normal(52, 9, n).clip(35, 75),
-            "city": np.random.choice(CITIES, n)
-        })
-        
-        df["snow_melt"] = np.maximum(0, df["temperature"]) * df["snow"] * 0.12
-        df["precip_3d"] = df["rain"] * 3
-        df["precip_7d"] = df["rain"] * 7
-        df["temp_rain_inter"] = df["temperature"] * df["rain"]
-        df["soil_river"] = df["soil_moisture"] * df["river_level"]
-        
-        city_dummies = pd.get_dummies(df["city"], prefix="city")
-        df = pd.concat([df.drop("city", axis=1), city_dummies], axis=1)
-        
-        feature_columns = [
-            "temperature", "rain", "snow", "soil_moisture", "river_level",
-            "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river"
-        ] + [f"city_{c}" for c in CITIES]
-        
-        X = df[feature_columns]
-        
-        from sklearn.preprocessing import StandardScaler
-        scaler = StandardScaler()
-        scaler.fit(X)
-        
-        joblib.dump(scaler, scaler_path)
-        model = FloodModel(input_dim=len(feature_columns))
-        torch.save(model, model_path)
-        
-        st.success("Модель создана!")
+    features_path = "models/feature_columns.pkl"
     
-    model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
-    model.eval()
-    scaler = joblib.load(scaler_path)
+    CITIES = ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]
+
+    # Если все файлы существуют – загружаем
+    if os.path.exists(model_path) and os.path.exists(scaler_path) and os.path.exists(features_path):
+        model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
+        model.eval()
+        scaler = joblib.load(scaler_path)
+        feature_columns = joblib.load(features_path)
+        return model, scaler, feature_columns
+
+    # Иначе – создаём заново (первый запуск)
+    st.info("Первый запуск: создаём модель...")
+    np.random.seed(42)
+    n = 5000
+    
+    df = pd.DataFrame({
+        "temperature": np.random.normal(3.5, 12, n),
+        "rain": np.random.exponential(8, n).clip(0, 55),
+        "snow": np.random.exponential(15, n).clip(0, 45),
+        "soil_moisture": np.random.beta(3, 2, n),
+        "river_level": np.random.normal(52, 9, n).clip(35, 75),
+        "city": np.random.choice(CITIES, n)
+    })
+    
+    df["snow_melt"] = np.maximum(0, df["temperature"]) * df["snow"] * 0.12
+    df["precip_3d"] = df["rain"] * 3
+    df["precip_7d"] = df["rain"] * 7
+    df["temp_rain_inter"] = df["temperature"] * df["rain"]
+    df["soil_river"] = df["soil_moisture"] * df["river_level"]
+    
+    city_dummies = pd.get_dummies(df["city"], prefix="city")
+    df = pd.concat([df.drop("city", axis=1), city_dummies], axis=1)
     
     feature_columns = [
         "temperature", "rain", "snow", "soil_moisture", "river_level",
         "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river"
-    ] + [f"city_{c}" for c in ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]]
+    ] + [f"city_{c}" for c in CITIES]
     
+    X = df[feature_columns]
+    
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    scaler.fit(X)
+    
+    # Сохраняем scaler и список признаков
+    joblib.dump(scaler, scaler_path)
+    joblib.dump(feature_columns, features_path)
+    
+    model = FloodModel(input_dim=len(feature_columns))
+    torch.save(model, model_path)
+    
+    st.success("Модель создана!")
     return model, scaler, feature_columns
 
 model, scaler, feature_columns = load_or_create_model()
