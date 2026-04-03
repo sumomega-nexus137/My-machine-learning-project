@@ -1,0 +1,46 @@
+"""
+features.py — Feature engineering for ARGUS.
+
+All features are built as a plain numpy array (no pandas),
+so sklearn's scaler never raises feature-name mismatches.
+"""
+
+import numpy as np
+from config import FEATURE_COLUMNS, INPUT_DIM
+
+
+def engineer_features(
+    temp: float,
+    rain: float,
+    snow: float,
+    soil: float,
+    river: float,
+    city: str,
+) -> np.ndarray:
+    """
+    Build a (1, INPUT_DIM) float32 array for a single observation.
+
+    Feature order is defined once in config.FEATURE_COLUMNS and
+    respected here — guaranteed to match the scaler's training order.
+    """
+    values: dict[str, float] = {
+        "temperature":    temp,
+        "rain":           rain,
+        "snow":           snow,
+        "soil_moisture":  soil,
+        "river_level":    river,
+        # Derived features
+        "snow_melt":      max(0.0, temp) * snow * 0.12,
+        "precip_3d":      rain * 3.0,
+        "precip_7d":      rain * 7.0,
+        "temp_rain_inter": temp * rain,
+        "soil_river":     soil * river,
+        # One-hot city encoding
+        f"city_{city}":   1.0,
+    }
+
+    row = np.array(
+        [values.get(col, 0.0) for col in FEATURE_COLUMNS],
+        dtype=np.float32,
+    )
+    return row.reshape(1, -1)
