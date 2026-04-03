@@ -26,7 +26,7 @@ translations = {
     "en": {"title": "ARGUS • Flood Prediction", "subtitle": "Akmola Region", "select_city": "Select city or district", "temperature": "Air temperature, °C", "rain": "Rainfall, mm", "snow": "Snow cover, cm", "soil": "Soil moisture (0–1)", "river": "River level, cm", "calculate": "Calculate flood risk", "risk": "Flood risk", "low": "Low risk", "medium": "Medium risk", "high": "High risk", "authors": "Developed by: Miras Shamshidov and Beksultan Abdykhalyk", "supervisor": "Scientific supervisor: Olga Shornikova Nikolaevna", "year": "2026"}
 }
 
-# ====================== СТИЛИ (светлый чистый дизайн) ======================
+# ====================== СТИЛИ ======================
 st.set_page_config(page_title="ARGUS", layout="wide")
 st.markdown("""
 <style>
@@ -38,17 +38,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ====================== СОЗДАНИЕ / ЗАГРУЗКА МОДЕЛИ ======================
+# ====================== МОДЕЛЬ + SCALER ======================
 @st.cache_resource
 def load_or_create_model():
     os.makedirs("models", exist_ok=True)
     model_path = "models/flood_model.pt"
     scaler_path = "models/scaler.pkl"
 
-    # Если модель ещё не создана — создаём
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
-        st.info("Первый запуск: создаём модель и scaler...")
-        
+        st.info("Первый запуск: создаём модель...")
         np.random.seed(42)
         CITIES = ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]
         n = 5000
@@ -71,7 +69,6 @@ def load_or_create_model():
         city_dummies = pd.get_dummies(df["city"], prefix="city")
         df = pd.concat([df.drop("city", axis=1), city_dummies], axis=1)
         
-        # Жёстко заданный порядок колонок
         feature_columns = [
             "temperature", "rain", "snow", "soil_moisture", "river_level",
             "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river"
@@ -81,21 +78,18 @@ def load_or_create_model():
         
         from sklearn.preprocessing import StandardScaler
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        scaler.fit(X)
         
         joblib.dump(scaler, scaler_path)
-        
         model = FloodModel(input_dim=len(feature_columns))
         torch.save(model, model_path)
         
-        st.success("Модель успешно создана!")
+        st.success("Модель создана!")
     
-    # Загружаем готовые файлы
     model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     model.eval()
     scaler = joblib.load(scaler_path)
     
-    # Жёстко заданный список колонок (чтобы не было ошибки)
     feature_columns = [
         "temperature", "rain", "snow", "soil_moisture", "river_level",
         "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river"
@@ -128,17 +122,22 @@ with c4: soil = st.slider(t["soil"], 0.0, 1.0, 0.3, step=0.01)
 with c5: river = st.slider(t["river"], 35.0, 80.0, 50.0, step=0.1)
 
 if st.button(t["calculate"], type="primary", use_container_width=True):
-    input_data = {
-        "temperature": temp, "rain": rain, "snow": snow,
-        "soil_moisture": soil, "river_level": river,
-        "snow_melt": max(0, temp) * snow * 0.12,
-        "precip_3d": rain * 3, "precip_7d": rain * 7,
-        "temp_rain_inter": temp * rain, "soil_river": soil * river
-    }
-    for c in ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]:
-        input_data[f"city_{c}"] = 1 if c == city else 0
+    # === БУЛЛЕТПРУФ СОЗДАНИЕ ДАННЫХ ===
+    input_row = {col: 0.0 for col in feature_columns}
     
-    df_input = pd.DataFrame([input_data])[feature_columns]
+    input_row["temperature"] = temp
+    input_row["rain"] = rain
+    input_row["snow"] = snow
+    input_row["soil_moisture"] = soil
+    input_row["river_level"] = river
+    input_row["snow_melt"] = max(0, temp) * snow * 0.12
+    input_row["precip_3d"] = rain * 3
+    input_row["precip_7d"] = rain * 7
+    input_row["temp_rain_inter"] = temp * rain
+    input_row["soil_river"] = soil * river
+    input_row[f"city_{city}"] = 1.0
+
+    df_input = pd.DataFrame([input_row], columns=feature_columns)
     
     X_scaled = scaler.transform(df_input)
     X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
