@@ -1,0 +1,107 @@
+"""
+model.py — FloodModel architecture and training pipeline.
+"""
+
+import os
+import numpy as np
+import joblib
+import torch
+import torch.nn as nn
+from sklearn.preprocessing import StandardScaler
+
+from config import CITIES, INPUT_DIM, MODEL_PATH, SCALER_PATH
+from features import engineer_features
+
+
+class FloodModel(nn.Module):
+    """
+    4-layer MLP with BatchNorm + Dropout for flood risk regression.
+    Output: raw logit → apply sigmoid to get probability [0, 1].
+    """
+
+    def __init__(self, input_dim: int = INPUT_DIM):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(64, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
+def train_model(
+    n_samples: int = 8000,
+    epochs: int = 60,
+    lr: float = 1e-3,
+    seed: int = 42,
+) -> tuple[StandardScaler, "FloodModel"]:
+    """
+    Generate synthetic training data, fit scaler, train model, save both.
+    Returns (scaler, model) ready for inference.
+    """
+    os.makedirs("models", exist_ok=True)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    # ── Synthetic data generation ──────────────────────────────
+    n = n_samples
+    temp  = np.random.normal(3.5, 12, n)
+    rain  = np.random.exponential(8, n).clip(0, 55)
+    snow  = np.random.exponential(15, n).clip(0, 45)
+    soil  = np.random.beta(3, 2, n)
+    river = np.random.normal(52, 9, n).clip(35, 75)
+    cities = np.random.choice(CITIES, n)
+
+    X = np.vstack([
+        engineer_features(t, r, s, so, rv, c)
+        for t, r, s, so, rv, c in zip(temp, rain, snow, soil, river, cities)
+    ])  # shape: (n, INPUT_DIM)
+
+    # ── Fit scaler ─────────────────────────────────────────────
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    joblib.dump(scaler, SCALER_PATH)
+
+    # ── Synthetic labels ───────────────────────────────────────
+    # Risk driven by: river level + snow melt + soil moisture
+    risk_signal = (X_scaled[:, 4] + X_scaled[:, 5] + X_scaled[:, 3]) / 3
+    y = torch.sigmoid(
+        torch.tensor(risk_signal, dtype=torch.float32)
+    ).unsqueeze(1)
+
+    X_t = torch.tensor(X_scaled, dtype=torch.float32)
+
+    # ── Train ──────────────────────────────────────────────────
+    model     = FloodModel(INPUT_DIM)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    criterion = nn.BCEWithLogitsLoss()
+
+    model.train()
+    for _ in range(epochs):
+        optimizer.zero_grad()
+        loss = criterion(model(X_t), y)
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
+
+    # ── Save ───────────────────────────────────────────────────
+    model.eval()
+    torch.save(model.state_dict(), MODEL_PATH)
+
+    return scaler, model
