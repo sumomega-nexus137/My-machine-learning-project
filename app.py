@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # ====================== МОДЕЛЬ ======================
 class FloodModel(nn.Module):
@@ -22,61 +22,33 @@ class FloodModel(nn.Module):
 
 # ====================== МНОГОЯЗЫЧНОСТЬ ======================
 translations = {
-    "ru": {
-        "title": "ARGUS • Прогноз паводков", "subtitle": "Акмолинская область",
-        "select_city": "Выберите город или район", "temperature": "Температура воздуха, °C",
-        "rain": "Осадки (дождь), мм", "snow": "Снежный покров, см",
-        "soil": "Влажность почвы (0–1)", "river": "Уровень реки, см",
-        "calculate": "Рассчитать риск затопления", "risk": "Риск затопления",
-        "low": "Низкий риск", "medium": "Средний риск", "high": "Высокий риск",
-        "authors": "Разработано: Шамшидовым Мирасом и Бексултаном Абдыхалыком",
-        "supervisor": "Научный руководитель: Ольга Шорникова Николаевна", "year": "2026"
-    },
-    "kk": {
-        "title": "ARGUS • Су тасқыны болжамы", "subtitle": "Ақмола облысы",
-        "select_city": "Қала немесе ауданды таңдаңыз", "temperature": "Ауа температурасы, °C",
-        "rain": "Жаңбыр, мм", "snow": "Қар қабаты, см",
-        "soil": "Топырақ ылғалдылығы (0–1)", "river": "Өзен деңгейі, см",
-        "calculate": "Су басу қаупін есептеу", "risk": "Су басу қаупі",
-        "low": "Төмен қауіп", "medium": "Орташа қауіп", "high": "Жоғары қауіп",
-        "authors": "Әзірлеген: Мирас Шамшидов және Бексұлтан Абдыхалық",
-        "supervisor": "Ғылыми жетекші: Ольга Шорникова Николаевна", "year": "2026"
-    },
-    "en": {
-        "title": "ARGUS • Flood Prediction", "subtitle": "Akmola Region",
-        "select_city": "Select city or district", "temperature": "Air temperature, °C",
-        "rain": "Rainfall, mm", "snow": "Snow cover, cm",
-        "soil": "Soil moisture (0–1)", "river": "River level, cm",
-        "calculate": "Calculate flood risk", "risk": "Flood risk",
-        "low": "Low risk", "medium": "Medium risk", "high": "High risk",
-        "authors": "Developed by: Miras Shamshidov and Beksultan Abdykhalyk",
-        "supervisor": "Scientific supervisor: Olga Shornikova Nikolaevna", "year": "2026"
-    }
+    "ru": {"title": "ARGUS • Прогноз паводков", "subtitle": "Акмолинская область", "select_city": "Выберите город или район", "temperature": "Температура воздуха, °C", "rain": "Осадки (дождь), мм", "snow": "Снежный покров, см", "soil": "Влажность почвы (0–1)", "river": "Уровень реки, см", "calculate": "Рассчитать риск затопления", "risk": "Риск затопления", "low": "Низкий риск", "medium": "Средний риск", "high": "Высокий риск", "authors": "Разработано: Шамшидовым Мирасом и Бексултаном Абдыхалыком", "supervisor": "Научный руководитель: Ольга Шорникова Николаевна", "year": "2026"},
+    "kk": {"title": "ARGUS • Су тасқыны болжамы", "subtitle": "Ақмола облысы", "select_city": "Қала немесе ауданды таңдаңыз", "temperature": "Ауа температурасы, °C", "rain": "Жаңбыр, мм", "snow": "Қар қабаты, см", "soil": "Топырақ ылғалдылығы (0–1)", "river": "Өзен деңгейі, см", "calculate": "Су басу қаупін есептеу", "risk": "Су басу қаупі", "low": "Төмен қауіп", "medium": "Орташа қауіп", "high": "Жоғары қауіп", "authors": "Әзірлеген: Мирас Шамшидов және Бексұлтан Абдыхалық", "supervisor": "Ғылыми жетекші: Ольга Шорникова Николаевна", "year": "2026"},
+    "en": {"title": "ARGUS • Flood Prediction", "subtitle": "Akmola Region", "select_city": "Select city or district", "temperature": "Air temperature, °C", "rain": "Rainfall, mm", "snow": "Snow cover, cm", "soil": "Soil moisture (0–1)", "river": "River level, cm", "calculate": "Calculate flood risk", "risk": "Flood risk", "low": "Low risk", "medium": "Medium risk", "high": "High risk", "authors": "Developed by: Miras Shamshidov and Beksultan Abdykhalyk", "supervisor": "Scientific supervisor: Olga Shornikova Nikolaevna", "year": "2026"}
 }
 
-# ====================== НАСТРОЙКИ ======================
-st.set_page_config(page_title="ARGUS", layout="wide", initial_sidebar_state="expanded")
-
-# Чистый светлый дизайн (убрали океан и чёрный фон)
+# ====================== СТИЛИ (светлый чистый дизайн) ======================
+st.set_page_config(page_title="ARGUS", layout="wide")
 st.markdown("""
 <style>
     .stApp {background: #f8fafc;}
-    .main-header {font-size: 2.8rem; font-weight: 700; color: #0f172a; margin-bottom: 0;}
-    .glass {background: rgba(255,255,255,0.95); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 24px;}
-    .stButton>button {background: #0284c8; color: white; height: 52px; font-size: 1.1rem; font-weight: 600;}
+    .main-header {font-size: 2.8rem; font-weight: 700; color: #0f172a;}
+    .glass {background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 24px;}
+    .stButton>button {background: #0284c8; color: white; height: 52px; font-size: 1.1rem;}
     .stButton>button:hover {background: #0369a1;}
-    .sidebar .css-1d391kg {background: #f1f5f9;}
 </style>
 """, unsafe_allow_html=True)
 
-# ====================== СОЗДАНИЕ/ЗАГРУЗКА МОДЕЛИ ======================
+# ====================== ЗАГРУЗКА / СОЗДАНИЕ МОДЕЛИ ======================
 @st.cache_resource
 def load_or_create_model():
     os.makedirs("models", exist_ok=True)
+    
     model_path = "models/flood_model.pt"
     scaler_path = "models/scaler.pkl"
     feature_path = "models/feature_columns.pkl"
 
+    # Если файлов нет — создаём
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
         st.info("Первый запуск: создаём модель и scaler...")
         
@@ -119,12 +91,15 @@ def load_or_create_model():
         
         model = FloodModel(input_dim=len(feature_columns))
         torch.save(model, model_path)
-        st.success("Модель успешно создана!")
+        
+        st.success("Модель и scaler успешно созданы!")
     
+    # Загружаем (теперь файлы точно существуют)
     model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     model.eval()
     scaler = joblib.load(scaler_path)
     feature_columns = joblib.load(feature_path)
+    
     return model, scaler, feature_columns
 
 model, scaler, feature_columns = load_or_create_model()
@@ -137,8 +112,7 @@ t = translations[lang_code]
 with st.sidebar:
     st.title("ARGUS")
     st.caption("Система прогнозирования паводков")
-    city = st.selectbox(t["select_city"], ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь",
-                                           "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"])
+    city = st.selectbox(t["select_city"], ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"])
 
 st.markdown(f"<h1 class='main-header'>{t['title']}</h1>", unsafe_allow_html=True)
 st.subheader(f"{t['subtitle']} — {city}")
@@ -160,11 +134,9 @@ if st.button(t["calculate"], type="primary", use_container_width=True):
         "precip_3d": rain * 3, "precip_7d": rain * 7,
         "temp_rain_inter": temp * rain, "soil_river": soil * river
     }
-    for c in ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь",
-              "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]:
+    for c in ["Кокшетау", "Степногорск", "Щучинск", "Атбасар", "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы"]:
         input_data[f"city_{c}"] = 1 if c == city else 0
     
-    # Важно: создаём DataFrame с ТОЧНЫМ порядком колонок
     df_input = pd.DataFrame([input_data])[feature_columns]
     
     X_scaled = scaler.transform(df_input)
@@ -175,22 +147,18 @@ if st.button(t["calculate"], type="primary", use_container_width=True):
         prob = torch.sigmoid(logit).item()
 
     risk = round(prob * 100, 1)
-    if risk < 30:
-        status, color = t["low"], "#22c55e"
-    elif risk < 65:
-        status, color = t["medium"], "#eab308"
-    else:
-        status, color = t["high"], "#ef4444"
+    if risk < 30: status, color = t["low"], "#22c55e"
+    elif risk < 65: status, color = t["medium"], "#eab308"
+    else: status, color = t["high"], "#ef4444"
 
     st.markdown(f"""
-    <div style="background:#fff; padding:30px; border-radius:16px; text-align:center; border-left:8px solid {color}; box-shadow:0 10px 30px rgba(0,0,0,0.1);">
+    <div class="glass" style="border-left: 8px solid {color};">
         <h2 style="color:{color}; margin:0;">{status}</h2>
         <h1 style="font-size:4.8rem; margin:15px 0; color:#0f172a;">{risk}%</h1>
         <p style="margin:0; font-size:1.1rem; color:#64748b;">{t["risk"]}</p>
     </div>
     """, unsafe_allow_html=True)
 
-# Футер
 st.caption(t["authors"])
 st.caption(t["supervisor"])
 st.caption(f"Год выпуска: {t['year']}")
