@@ -20,3 +20,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+git rm -r --cached models/
+git commit -m "remove old model files"
+git push
