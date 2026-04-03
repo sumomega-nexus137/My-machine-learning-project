@@ -1,6 +1,6 @@
 """
 ARGUS — Flood Prediction System
-Single-file version for reliable Streamlit Cloud deployment.
+Single-file version for Streamlit Cloud deployment.
 """
 
 import os
@@ -24,7 +24,7 @@ BASE_FEATURES = [
 ]
 CITY_FEATURES   = [f"city_{c}" for c in CITIES]
 FEATURE_COLUMNS = BASE_FEATURES + CITY_FEATURES
-INPUT_DIM       = len(FEATURE_COLUMNS)   # 20
+INPUT_DIM       = len(FEATURE_COLUMNS)  # 20
 
 MODEL_DIR   = "models"
 MODEL_PATH  = os.path.join(MODEL_DIR, "flood_model.pt")
@@ -85,7 +85,7 @@ T = {
 }
 
 # ══════════════════════════════════════════════
-#  MODEL ARCHITECTURE
+#  MODEL
 # ══════════════════════════════════════════════
 class FloodModel(nn.Module):
     def __init__(self, input_dim: int = INPUT_DIM):
@@ -101,10 +101,10 @@ class FloodModel(nn.Module):
         return self.net(x)
 
 # ══════════════════════════════════════════════
-#  FEATURE ENGINEERING  (pure numpy — no DataFrame)
+#  FEATURE ENGINEERING
 # ══════════════════════════════════════════════
 def build_features(temp, rain, snow, soil, river, city) -> np.ndarray:
-    """Returns shape (1, INPUT_DIM) float32 array. No pandas → no column-name errors."""
+    """Pure numpy — never raises sklearn column-name errors."""
     vals = {
         "temperature":     float(temp),
         "rain":            float(rain),
@@ -122,7 +122,7 @@ def build_features(temp, rain, snow, soil, river, city) -> np.ndarray:
     return row.reshape(1, -1)
 
 # ══════════════════════════════════════════════
-#  TRAINING
+#  TRAINING  — pure Python, zero st.* calls
 # ══════════════════════════════════════════════
 def _train_and_save():
     from sklearn.preprocessing import StandardScaler
@@ -131,12 +131,12 @@ def _train_and_save():
     np.random.seed(42)
     torch.manual_seed(42)
 
-    n = 8000
-    temp  = np.random.normal(3.5, 12, n)
-    rain  = np.random.exponential(8, n).clip(0, 55)
-    snow  = np.random.exponential(15, n).clip(0, 45)
-    soil  = np.random.beta(3, 2, n)
-    river = np.random.normal(52, 9, n).clip(35, 75)
+    n      = 8000
+    temp   = np.random.normal(3.5, 12, n)
+    rain   = np.random.exponential(8, n).clip(0, 55)
+    snow   = np.random.exponential(15, n).clip(0, 45)
+    soil   = np.random.beta(3, 2, n)
+    river  = np.random.normal(52, 9, n).clip(35, 75)
     cities = np.random.choice(CITIES, n)
 
     X = np.vstack([
@@ -148,9 +148,8 @@ def _train_and_save():
     X_sc   = scaler.fit_transform(X)
     joblib.dump(scaler, SCALER_PATH)
 
-    # Synthetic risk signal
     risk_signal = (X_sc[:, 4] + X_sc[:, 5] + X_sc[:, 3]) / 3.0
-    y = torch.sigmoid(torch.tensor(risk_signal, dtype=torch.float32)).unsqueeze(1)
+    y   = torch.sigmoid(torch.tensor(risk_signal, dtype=torch.float32)).unsqueeze(1)
     X_t = torch.tensor(X_sc, dtype=torch.float32)
 
     model     = FloodModel(INPUT_DIM)
@@ -166,39 +165,37 @@ def _train_and_save():
         scheduler.step()
 
     model.eval()
-    # Save ONLY state_dict (safe across PyTorch versions)
     torch.save(model.state_dict(), MODEL_PATH)
     return scaler, model
 
 # ══════════════════════════════════════════════
-#  LOAD OR CREATE
+#  LOAD MODEL — absolutely no st.* calls here
 # ══════════════════════════════════════════════
 @st.cache_resource(show_spinner=False)
-def get_model():
+def _load_model():
+    """
+    RULE: zero st.* calls inside this function.
+    Returns (scaler, model, status_message).
+    Caller displays the status message using st.toast / st.warning.
+    """
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-    # Try loading existing files
     if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
         try:
             scaler = joblib.load(SCALER_PATH)
             model  = FloodModel(INPUT_DIM)
-            # weights_only=True: reads only tensors, never executes arbitrary code
-            state  = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
-            model.load_state_dict(state)
+            model.load_state_dict(
+                torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
+            )
             model.eval()
-            return scaler, model
-        except Exception as e:
-            # Incompatible / corrupt files → wipe and retrain
-            st.warning(f"Old model files detected, retraining… ({type(e).__name__})")
+            return scaler, model, "ok"
+        except Exception:
             for p in (MODEL_PATH, SCALER_PATH):
                 if os.path.exists(p):
                     os.remove(p)
 
-    # Train from scratch
-    with st.spinner("⚙️ Training model (first run only, ~10s)…"):
-        scaler, model = _train_and_save()
-    st.toast("✅ Model ready!", icon="🌊")
-    return scaler, model
+    scaler, model = _train_and_save()
+    return scaler, model, "trained"
 
 # ══════════════════════════════════════════════
 #  PAGE CONFIG & STYLES
@@ -216,7 +213,6 @@ section[data-testid="stSidebar"] {
     background: #0d1424;
     border-right: 1px solid #1e2d4a;
 }
-
 .main-header {
     font-family: 'Syne', sans-serif;
     font-weight: 800;
@@ -293,9 +289,13 @@ div[data-testid="stSlider"] label {
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
-#  LOAD MODEL
+#  BOOT  — all st.* notifications happen here
 # ══════════════════════════════════════════════
-scaler, model = get_model()
+with st.spinner("⚙️ Loading model…"):
+    scaler, model, boot_status = _load_model()
+
+if boot_status == "trained":
+    st.toast("✅ Model trained and ready!", icon="🌊")
 
 # ══════════════════════════════════════════════
 #  SIDEBAR
@@ -312,7 +312,7 @@ with st.sidebar:
     city = st.selectbox(t["select_city"], CITIES)
     st.divider()
 
-    st.markdown('<p class="footer-note">v2.1 · Akmola Region · 2026</p>', unsafe_allow_html=True)
+    st.markdown('<p class="footer-note">v2.2 · Akmola Region · 2026</p>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 #  MAIN UI
@@ -322,19 +322,19 @@ st.markdown(f'<p class="sub-header">{t["subtitle"]} — {city}</p>', unsafe_allo
 st.markdown("<br>", unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns(3)
-with c1: temp  = st.slider(t["temperature"], -35.0, 40.0, 5.0,  step=0.5)
-with c2: rain  = st.slider(t["rain"],          0.0, 60.0, 5.0,  step=0.1)
-with c3: snow  = st.slider(t["snow"],          0.0, 45.0, 0.0,  step=0.1)
+with c1: temp  = st.slider(t["temperature"], -35.0, 40.0,  5.0, step=0.5)
+with c2: rain  = st.slider(t["rain"],          0.0, 60.0,  5.0, step=0.1)
+with c3: snow  = st.slider(t["snow"],          0.0, 45.0,  0.0, step=0.1)
 
 c4, c5 = st.columns(2)
-with c4: soil  = st.slider(t["soil"],   0.0, 1.0,  0.3, step=0.01)
+with c4: soil  = st.slider(t["soil"],   0.0,  1.0,  0.3, step=0.01)
 with c5: river = st.slider(t["river"], 35.0, 80.0, 50.0, step=0.1)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 if st.button(t["calculate"], use_container_width=True):
     x_raw    = build_features(temp, rain, snow, soil, river, city)
-    x_scaled = scaler.transform(x_raw)                          # numpy in → no name errors
+    x_scaled = scaler.transform(x_raw)
     x_tensor = torch.tensor(x_scaled, dtype=torch.float32)
 
     with torch.no_grad():
