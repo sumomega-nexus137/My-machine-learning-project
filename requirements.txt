@@ -1,3 +1,9 @@
 streamlit
 torch
+torchvision
+torchaudio
+pandas
 numpy
+scikit-learn
+plotly
+joblib
