@@ -1,28 +1,7 @@
-"""
-ARGUS — Flood Risk Prediction System
-
-Single-file Streamlit app.
-
-FIXED VERSION for GitHub / Streamlit Cloud
-✅ Images now load reliably using pathlib (this was the problem)
-✅ Completed the incomplete _load_model function
-✅ Everything else is exactly as you wrote it
-
-Requirements:
-streamlit
-torch
-numpy
-matplotlib
-Pillow
-
-Put your photos in an images/ folder next to this file:
-images/map_akmola.png
-images/flood_2024.jpg
-images/flood_damage.jpg
-"""
-
 import os
 import pathlib
+from typing import Optional, Tuple
+
 import numpy as np
 import streamlit as st
 import torch
@@ -41,20 +20,13 @@ st.set_page_config(
 )
 
 # ========================================================
-# ROBUST IMAGE LOADING — FIXED FOR GITHUB
+# PATHS
 # ========================================================
 BASE_DIR = pathlib.Path(__file__).parent.resolve()
 IMAGES_DIR = BASE_DIR / "images"
-
-def load_image(filename: str):
-    """Fixed image loader that works on GitHub + Streamlit Cloud"""
-    path = IMAGES_DIR / filename
-    if not path.exists():
-        st.error(f"❌ Image not found: {filename}")
-        st.info(f"Expected path: {path}")
-        st.info("Make sure the 'images' folder is in your GitHub repo root and all 3 files are committed.")
-        return None
-    return Image.open(str(path))
+MODEL_DIR = BASE_DIR / "models"
+MODEL_PATH = MODEL_DIR / "argus_model.pt"
+SCALER_PATH = MODEL_DIR / "argus_scaler.npz"
 
 # ========================================================
 # CONSTANTS
@@ -68,27 +40,19 @@ BASE_FEATURES = [
     "temperature", "rain", "snow", "soil_moisture", "river_level",
     "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river",
 ]
-
 CITY_FEATURES = [f"city_{c}" for c in CITIES]
 FEATURE_COLUMNS = BASE_FEATURES + CITY_FEATURES
 INPUT_DIM = len(FEATURE_COLUMNS)
 
-MODEL_DIR = "models"
-MODEL_PATH = os.path.join(MODEL_DIR, "argus_model.pt")
-SCALER_PATH = os.path.join(MODEL_DIR, "argus_scaler.npz")
-
 CITY_BIAS = {
     "Кокшетау": 0.10, "Степногорск": 0.08, "Щучинск": 0.12,
-    "Атбасар": 0.28,  "Акколь": 0.16,      "Макинск": 0.18,
-    "Есиль": 0.14,    "Ерейментау": 0.09,  "Степняк": 0.11,
+    "Атбасар": 0.28,  "Акколь": 0.16,     "Макинск": 0.18,
+    "Есиль": 0.14,    "Ерейментау": 0.09, "Степняк": 0.11,
     "Қосшы": 0.07,
 }
 
 LANG_MAP = {"Русский": "ru", "Қазақша": "kk", "English": "en"}
 
-# ========================================================
-# TRANSLATIONS (exactly as you provided)
-# ========================================================
 T = {
     "ru": {
         "app_title": "ARGUS",
@@ -306,7 +270,17 @@ T = {
 }
 
 # ========================================================
-# MODEL / SCALER (exactly as you wrote)
+# IMAGE LOADING
+# ========================================================
+def load_image(filename: str) -> Optional[Image.Image]:
+    path = IMAGES_DIR / filename
+    if not path.exists():
+        st.warning(f"Image not found: {filename}")
+        return None
+    return Image.open(str(path))
+
+# ========================================================
+# MODEL / SCALER
 # ========================================================
 class StandardScalerLite:
     def __init__(self):
@@ -349,6 +323,7 @@ class FloodModel(nn.Module):
             nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, 1),
+            nn.Sigmoid(),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -375,19 +350,290 @@ def build_features(temp, rain, snow, soil_percent, river_cm, city) -> np.ndarray
     return row.reshape(1, -1)
 
 
-def _generate_training_data(n: int = 12000):
+def generate_training_data(n: int = 8000) -> Tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(42)
-    temp = rng.normal(loc=2.0, scale=12.0, size=n).clip(-35, 35)
+
+    temp = rng.normal(2.0, 12.0, n).clip(-35, 35)
     warm_mask = rng.random(n) > 0.55
     temp[warm_mask] = rng.uniform(-5, 25, warm_mask.sum())
 
-    rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 300)
+    rain = rng.gamma(1.4, 14.0, n).clip(0, 300)
     heavy_mask = rng.random(n) < 0.07
     rain[heavy_mask] = rng.uniform(40, 220, heavy_mask.sum())
 
-    snow = rng.gamma(shape=2.1, scale=18.0, size=n).clip(0, 300)
+    snow = rng.gamma(2.1, 18.0, n).clip(0, 300)
     snow = np.where(rng.random(n) < 0.10, rng.uniform(0, 40, n), snow)
 
-    soil = rng.beta(2.4, 2.1, size=n) * 100.0
-    river = rng.normal(loc=155.0, scale=50.0, size=n)
-    
+    soil = rng.beta(2.4, 2.1, n) * 100.0
+    river = rng.normal(155.0, 50.0, n).clip(0, 400)
+
+    city_idx = rng.integers(0, len(CITIES), size=n)
+    city_onehot = np.eye(len(CITIES), dtype=np.float32)[city_idx]
+    city_bias_vec = np.array([CITY_BIAS[c] for c in CITIES], dtype=np.float32)[city_idx]
+
+    snow_melt = np.maximum(0.0, temp) * snow * 0.12
+
+    X = np.column_stack([
+        temp,
+        rain,
+        snow,
+        soil / 100.0,
+        river,
+        snow_melt,
+        rain * 3.0,
+        rain * 7.0,
+        temp * rain,
+        (soil / 100.0) * river,
+        city_onehot,
+    ]).astype(np.float32)
+
+    y = (
+        0.30 * (rain / 300.0)
+        + 0.28 * (river / 400.0)
+        + 0.20 * (snow / 300.0)
+        + 0.12 * (soil / 100.0)
+        - 0.10 * (temp / 30.0)
+        + 0.10 * city_bias_vec
+    )
+    y = np.clip(y, 0.0, 1.0).astype(np.float32).reshape(-1, 1)
+    return X, y
+
+
+def ensure_dirs():
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@st.cache_resource(show_spinner=False)
+def load_assets() -> Tuple[StandardScalerLite, FloodModel]:
+    ensure_dirs()
+
+    scaler = StandardScalerLite()
+    model = FloodModel(INPUT_DIM)
+
+    if SCALER_PATH.exists():
+        try:
+            scaler = StandardScalerLite.load(str(SCALER_PATH))
+        except Exception:
+            X_train, _ = generate_training_data()
+            scaler.fit(X_train)
+            try:
+                scaler.save(str(SCALER_PATH))
+            except Exception:
+                pass
+    else:
+        X_train, _ = generate_training_data()
+        scaler.fit(X_train)
+        try:
+            scaler.save(str(SCALER_PATH))
+        except Exception:
+            pass
+
+    if MODEL_PATH.exists():
+        try:
+            state = torch.load(str(MODEL_PATH), map_location="cpu")
+            if isinstance(state, dict):
+                model.load_state_dict(state)
+        except Exception:
+            pass
+    else:
+        X_train, y_train = generate_training_data()
+        X_train_scaled = torch.tensor(scaler.transform(X_train), dtype=torch.float32)
+        y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        loss_fn = nn.MSELoss()
+
+        model.train()
+        for _ in range(5):
+            optimizer.zero_grad()
+            outputs = model(X_train_scaled)
+            loss = loss_fn(outputs, y_train_tensor)
+            loss.backward()
+            optimizer.step()
+
+        try:
+            torch.save(model.state_dict(), str(MODEL_PATH))
+        except Exception:
+            pass
+
+    model.eval()
+    return scaler, model
+
+
+def risk_category(p: float) -> str:
+    if p < 0.30:
+        return "low"
+    if p < 0.70:
+        return "medium"
+    return "high"
+
+
+def chart_risk_factors(temp, rain, snow, soil, river, city, lang):
+    t = T[lang]
+    soil_norm = soil / 100.0
+    snow_melt = max(0.0, temp) * snow * 0.12
+    values = [
+        snow_melt,
+        rain * 7.0,
+        soil_norm * river,
+        CITY_BIAS.get(city, 0.0),
+    ]
+    labels = [
+        t["metric_snowmelt"],
+        t["metric_precip7"],
+        t["metric_saturation"],
+        t["metric_city"],
+    ]
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.bar(labels, values)
+    ax.set_ylabel("Value")
+    ax.set_title(t["section_charts"])
+    ax.tick_params(axis="x", rotation=15)
+    st.pyplot(fig, clear_figure=True)
+
+
+# ========================================================
+# APP STATE
+# ========================================================
+ensure_dirs()
+scaler, model = load_assets()
+
+# ========================================================
+# SIDEBAR
+# ========================================================
+st.sidebar.title("ARGUS")
+lang_label = st.sidebar.selectbox("Language / Тіл / Язык", list(LANG_MAP.keys()), index=0)
+lang = LANG_MAP[lang_label]
+t = T[lang]
+
+st.sidebar.markdown(f"**{t['sidebar_note']}**")
+st.sidebar.markdown(t["sidebar_authors"])
+st.sidebar.markdown(t["sidebar_supervisor"])
+
+city = st.sidebar.selectbox(t["sidebar_city"], CITIES)
+
+# ========================================================
+# MAIN HEADER
+# ========================================================
+st.title(t["app_title"])
+st.caption(t["app_tagline"])
+st.write(t["app_subtitle"])
+
+tab_predict, tab_region, tab_about, tab_guide = st.tabs(
+    [t["tab_predict"], t["tab_region"], t["tab_about"], t["tab_guide"]]
+)
+
+# ========================================================
+# PREDICT TAB
+# ========================================================
+with tab_predict:
+    st.subheader(t["section_predict"])
+    left, right = st.columns([1, 1])
+
+    with left:
+        st.markdown(f"**{t['section_inputs']}**")
+        temp = st.slider(t["temp"], -30.0, 40.0, 10.0, 0.5)
+        rain = st.slider(t["rain"], 0.0, 300.0, 20.0, 0.5)
+        snow = st.slider(t["snow"], 0.0, 300.0, 10.0, 0.5)
+        soil = st.slider(t["soil"], 0.0, 100.0, 50.0, 0.5)
+        river = st.slider(t["river"], 0.0, 400.0, 150.0, 0.5)
+
+        st.info(t["input_hint"])
+
+        calculate = st.button(t["calculate"], use_container_width=True)
+
+    with right:
+        st.markdown(f"**{t['section_results']}**")
+        st.write(t["risk_hint"])
+
+        if calculate:
+            X_input = build_features(temp, rain, snow, soil, river, city)
+            X_scaled = scaler.transform(X_input)
+
+            with torch.no_grad():
+                pred = float(model(torch.tensor(X_scaled, dtype=torch.float32)).item())
+
+            pred += CITY_BIAS.get(city, 0.0)
+            pred = float(np.clip(pred, 0.0, 1.0))
+            risk_pct = pred * 100.0
+            cat = risk_category(pred)
+
+            st.metric(t["risk"], f"{risk_pct:.1f}%")
+            if cat == "low":
+                st.success(t["low"])
+            elif cat == "medium":
+                st.warning(t["medium"])
+            else:
+                st.error(t["high"])
+
+            chart_risk_factors(temp, rain, snow, soil, river, city, lang)
+        else:
+            st.metric(t["risk"], "—")
+            st.caption("")
+
+# ========================================================
+# REGION TAB
+# ========================================================
+with tab_region:
+    st.subheader(t["region_title"])
+    st.markdown(f"### {t['region_intro_title']}")
+    st.write(t["region_intro_body"])
+
+    st.markdown(f"### {t['region_history_title']}")
+    st.write(t["region_history_body"])
+
+    st.markdown(f"### {t['region_operational_title']}")
+    st.write(t["region_operational_body"])
+
+    st.markdown(f"### {t['gallery_title']}")
+    img1 = load_image("map_akmola.png")
+    img2 = load_image("flood_2024.jpg")
+    img3 = load_image("flood_damage.jpg")
+
+    cols = st.columns(3)
+    if img1 is not None:
+        cols[0].image(img1, caption=t["photo_1"], use_container_width=True)
+    if img2 is not None:
+        cols[1].image(img2, caption=t["photo_2"], use_container_width=True)
+    if img3 is not None:
+        cols[2].image(img3, caption=t["photo_3"], use_container_width=True)
+
+# ========================================================
+# ABOUT TAB
+# ========================================================
+with tab_about:
+    st.subheader(t["about_title"])
+    st.markdown(f"### {t['about_goal_title']}")
+    st.write(t["about_goal_body"])
+    st.markdown(f"### {t['about_model_title']}")
+    st.write(t["about_model_body"])
+    st.markdown(f"### {t['about_stack_title']}")
+    st.write(t["about_stack_body"])
+    st.markdown(f"### {t['about_honesty_title']}")
+    st.write(t["about_honesty_body"])
+
+    st.markdown(f"### {t['about_authors_title']}")
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(f"**{t['author_1_name']}**")
+    c1.write(t["author_1_body"])
+    c2.markdown(f"**{t['author_2_name']}**")
+    c2.write(t["author_2_body"])
+    c3.markdown(f"**{t['supervisor_name']}**")
+    c3.write(t["supervisor_body"])
+
+# ========================================================
+# GUIDE TAB
+# ========================================================
+with tab_guide:
+    st.subheader(t["guide_title"])
+    st.write(t["guide_step_1"])
+    st.write(t["guide_step_2"])
+    st.write(t["guide_step_3"])
+    st.write(t["guide_step_4"])
+    st.markdown(f"### {t['guide_for_title']}")
+    st.write(t["guide_for_body"])
+    st.markdown(f"### {t['guide_benefit_title']}")
+    st.write(t["guide_benefit_body"])
+    st.info(t["guide_note"])
