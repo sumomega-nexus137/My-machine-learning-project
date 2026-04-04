@@ -637,12 +637,34 @@ def risk_level(prob_pct: float):
 
 
 def safe_image(url: str, caption: str = ""):
+    """Fetch image via requests (bypasses Wikimedia hotlink block) and display it."""
     try:
-        st.image(url, use_container_width=True)
+        import requests
+        from PIL import Image
+        import io
+
+        headers = {"User-Agent": "ARGUS-FloodApp/1.0 (educational project)"}
+        resp = requests.get(url, headers=headers, timeout=8)
+        resp.raise_for_status()
+        img = Image.open(io.BytesIO(resp.content))
+        st.image(img, use_container_width=True)
         if caption:
             st.caption(caption)
     except Exception:
-        st.markdown(f"<div class='small-note'>{caption or url}</div>", unsafe_allow_html=True)
+        # Fallback: grey placeholder with caption text
+        fig, ax = plt.subplots(figsize=(5, 3))
+        ax.set_facecolor("#e5e7eb")
+        fig.patch.set_facecolor("#e5e7eb")
+        ax.text(
+            0.5, 0.5, caption or "Image unavailable",
+            ha="center", va="center",
+            fontsize=10, color="#6b7280",
+            transform=ax.transAxes, wrap=True,
+        )
+        ax.axis("off")
+        st.pyplot(fig, clear_figure=True)
+        if caption:
+            st.caption(caption)
 
 
 # =========================================================
@@ -823,12 +845,12 @@ with tab2:
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         safe_image(
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Kazakhstan_Akmola_Region_relief_map.svg/800px-Kazakhstan_Akmola_Region_relief_map.svg.png",
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Akmola_in_Kazakhstan.svg/800px-Akmola_in_Kazakhstan.svg.png",
             tr("photo_1"),
         )
     with col_b:
         safe_image(
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/2024_Kazakhstan_floods.jpg/800px-2024_Kazakhstan_floods.jpg",
+            "https://upload.wikimedia.org/wikipedia/commons/8/8f/Su_tasqyny_3.jpg",
             tr("photo_2"),
         )
     with col_c:
