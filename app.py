@@ -18,7 +18,7 @@ import streamlit as st
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-
+import pathlib
 # =========================================================
 # PAGE CONFIG — must be first Streamlit call
 # =========================================================
@@ -636,20 +636,19 @@ def risk_level(prob_pct: float):
     return tr("high"), "#dc2626"
 
 
-def safe_image(url: str, caption: str = ""):
-    """Fetch image via requests (bypasses Wikimedia hotlink block) and display it."""
-    try:
-        import requests
-        from PIL import Image
-        import io
-
-        headers = {"User-Agent": "ARGUS-FloodApp/1.0 (educational project)"}
-        resp = requests.get(url, headers=headers, timeout=8)
-        resp.raise_for_status()
-        img = Image.open(io.BytesIO(resp.content))
-        st.image(img, use_container_width=True)
-        if caption:
-            st.caption(caption)
+def safe_image(path_or_url: str, caption: str = ""):
+    p = pathlib.Path(path_or_url)
+    if p.exists():
+        st.image(str(p), use_container_width=True)
+    else:
+        st.markdown(
+            f"<div style='background:#e5e7eb;border-radius:12px;height:200px;"
+            f"display:flex;align-items:center;justify-content:center;"
+            f"color:#9ca3af;font-size:0.85rem;'>{caption}</div>",
+            unsafe_allow_html=True,
+        )
+    if caption:
+        st.caption(caption)
     except Exception:
         # Fallback: grey placeholder with caption text
         fig, ax = plt.subplots(figsize=(5, 3))
@@ -843,21 +842,12 @@ with tab2:
     )
 
     col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        safe_image(
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Akmola_in_Kazakhstan.svg/800px-Akmola_in_Kazakhstan.svg.png",
-            tr("photo_1"),
-        )
-    with col_b:
-        safe_image(
-            "https://upload.wikimedia.org/wikipedia/commons/8/8f/Su_tasqyny_3.jpg",
-            tr("photo_2"),
-        )
-    with col_c:
-        safe_image(
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/ECDM_20240409_Russia_Kazakhstan_Flood.png/800px-ECDM_20240409_Russia_Kazakhstan_Flood.png",
-            tr("photo_3"),
-        )
+   with col_a:
+    safe_image("images/map_akmola.png", tr("photo_1"))
+with col_b:
+    safe_image("images/flood_2024.jpg", tr("photo_2"))
+with col_c:
+    safe_image("images/flood_damage.jpg", tr("photo_3"))
 
 # =========================================================
 # TAB 3 — ABOUT
