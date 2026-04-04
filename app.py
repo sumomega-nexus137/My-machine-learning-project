@@ -718,11 +718,11 @@ with tab2:
 
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Su_tasqyny.jpg/640px-Su_tasqyny.jpg", tr("photo_1"))
+        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Su_tasqyny.jpg/640px-Su_tasqyny.jpg", tr(""))
     with col_b:
-        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Su_tasqyny_3.jpg/640px-Su_tasqyny_3.jpg", tr("photo_2"))
+        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Su_tasqyny_3.jpg/640px-Su_tasqyny_3.jpg", tr(""))
     with col_c:
-        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Su_tasqyny_2.jpg/640px-Su_tasqyny_2.jpg", tr("photo_3"))
+        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Su_tasqyny_2.jpg/640px-Su_tasqyny_2.jpg", tr(""))
 
 # =========================================================
 # TAB 3 — ABOUT
