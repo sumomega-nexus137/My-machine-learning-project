@@ -9,10 +9,7 @@ Requirements:
     matplotlib
     Pillow
 
-Put your photos in an  images/  folder next to this file:
-    images/map_akmola.png
-    images/flood_2024.jpg
-    images/flood_damage.jpg
+Now using public image URLs (no images/ folder needed)
 """
 
 import os
@@ -540,29 +537,35 @@ def risk_level(prob_pct: float):
     return tr("high"), "#dc2626"
 
 
-def show_image(local_path: str, caption: str = ""):
+def show_image(src: str, caption: str = ""):
     """
-    Display image from a local file path.
-    If the file does not exist, shows a neat placeholder instead of crashing.
-    Add your images to the  images/  folder in the repo root.
+    Display image from URL or local path.
+    Now supports public URLs so no images/ folder is needed.
     """
-    p = pathlib.Path(local_path)
-    if p.exists():
-        st.image(str(p), use_container_width=True)
+    if src.startswith(("http://", "https://")):
+        # Public URL — just display it
+        st.image(src, use_container_width=True)
         if caption:
             st.caption(caption)
     else:
-        filename = p.name
-        st.markdown(
-            f'<div class="img-placeholder">'
-            f'<span style="font-size:2rem;">📷</span>'
-            f'<span>{caption}</span>'
-            f'<span style="color:#d1d5db;font-size:0.75rem;">Add <b>{filename}</b> to <b>images/</b></span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-        if caption:
-            st.caption(caption)
+        # Original local file logic (kept unchanged)
+        p = pathlib.Path(src)
+        if p.exists():
+            st.image(str(p), use_container_width=True)
+            if caption:
+                st.caption(caption)
+        else:
+            filename = p.name
+            st.markdown(
+                f'<div class="img-placeholder">'
+                f'<span style="font-size:2rem;">📷</span>'
+                f'<span>{caption}</span>'
+                f'<span style="color:#d1d5db;font-size:0.75rem;">Add <b>{filename}</b> to <b>images/</b></span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            if caption:
+                st.caption(caption)
 
 
 # =========================================================
@@ -715,11 +718,11 @@ with tab2:
 
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        show_image("images/map_akmola.png", tr("photo_1"))
+        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Su_tasqyny.jpg/640px-Su_tasqyny.jpg", tr("photo_1"))
     with col_b:
-        show_image("images/flood_2024.jpg", tr("photo_2"))
+        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Su_tasqyny_3.jpg/640px-Su_tasqyny_3.jpg", tr("photo_2"))
     with col_c:
-        show_image("images/flood_damage.jpg", tr("photo_3"))
+        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Su_tasqyny_2.jpg/640px-Su_tasqyny_2.jpg", tr("photo_3"))
 
 # =========================================================
 # TAB 3 — ABOUT
