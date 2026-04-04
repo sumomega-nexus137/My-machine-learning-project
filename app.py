@@ -20,9 +20,14 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 
 # =========================================================
-# PAGE
+# PAGE CONFIG — must be first Streamlit call
 # =========================================================
-st.set_page_config(page_title="ARGUS", page_icon="ARGUS", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="ARGUS",
+    page_icon="🌊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 # =========================================================
 # CONSTANTS
@@ -239,7 +244,7 @@ T = {
         "region_history_title": "Recent context",
         "region_history_body": "In 2024, floods in Kazakhstan were among the most extensive in decades. The 2017 floods also showed how vulnerable some settlements and engineering structures in the region can be.",
         "region_operational_title": "Operational value",
-        "region_operational_body": "This interface is designed as a early risk assessment tool for emergency services, local authorities, and residents. It helps identify high-risk areas early and supports evacuation decisions.",
+        "region_operational_body": "This interface is designed as an early risk assessment tool for emergency services, local authorities, and residents. It helps identify high-risk areas early and supports evacuation decisions.",
         "gallery_title": "Regional images and map",
         "photo_1": "Relief map of Akmola Region",
         "photo_2": "Flood situation in Kazakhstan, 2024",
@@ -413,7 +418,7 @@ def _load_model():
         try:
             scaler = StandardScalerLite.load(SCALER_PATH)
             model = FloodModel(INPUT_DIM)
-            state = torch.load(MODEL_PATH, map_location="cpu")
+            state = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
             model.load_state_dict(state)
             model.eval()
             return scaler, model, "loaded"
@@ -603,10 +608,12 @@ st.markdown(
 )
 
 # =========================================================
-# HELPERS
+# HELPERS  (defined before sidebar so tr() is usable)
 # =========================================================
 def tr(key: str) -> str:
-    return T[LANG][key]
+    """Translate using the current LANG stored in session_state."""
+    lang = st.session_state.get("lang", "ru")
+    return T[lang].get(key, key)
 
 
 def render_card(title: str, body: str):
@@ -629,34 +636,46 @@ def risk_level(prob_pct: float):
     return tr("high"), "#dc2626"
 
 
-def safe_image(url: str):
+def safe_image(url: str, caption: str = ""):
     try:
         st.image(url, use_container_width=True)
+        if caption:
+            st.caption(caption)
     except Exception:
-        st.markdown(f"<div class='small-note'>{url}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='small-note'>{caption or url}</div>", unsafe_allow_html=True)
 
 
 # =========================================================
-# BOOT
+# BOOT — load model (cached, language-independent)
 # =========================================================
-with st.spinner("Loading model..."):
+with st.spinner("Loading ARGUS model…"):
     scaler, model, boot_status = _load_model()
 
 # =========================================================
-# SIDEBAR
+# SIDEBAR  — language picker first, then everything else
 # =========================================================
 with st.sidebar:
     st.markdown("<div class='argus-brand'>ARGUS</div>", unsafe_allow_html=True)
     st.markdown("<div class='argus-tagline'>Flood Risk System</div>", unsafe_allow_html=True)
+    st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
+
+    # --- Language selector (must come first so tr() works for the rest) ---
+    lang_options = ["Русский", "Қазақша", "English"]
+    lang_label = st.selectbox(
+        "Язык / Тіл / Language",   # static label — no tr() needed here
+        lang_options,
+        index=0,
+        key="lang_selector",
+    )
+    # Store resolved language code in session_state so tr() can read it
+    st.session_state["lang"] = LANG_MAP[lang_label]
+
+    st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
+
+    city = st.selectbox(tr("sidebar_city"), CITIES, key="city_selector")
+
+    st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"<div class='argus-subtitle'>{tr('app_subtitle')}</div>", unsafe_allow_html=True)
-    st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
-
-    lang_label = st.selectbox(tr("sidebar_language"), ["Русский", "Қазақша", "English"])
-    LANG = LANG_MAP[lang_label]
-
-    st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
-    city = st.selectbox(tr("sidebar_city"), CITIES)
-
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('sidebar_note')}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('sidebar_authors')}</div>", unsafe_allow_html=True)
@@ -672,7 +691,9 @@ st.markdown(f"<div class='argus-subtitle'>{tr('app_subtitle')}</div>", unsafe_al
 # =========================================================
 # TABS
 # =========================================================
-tab1, tab2, tab3, tab4 = st.tabs([tr("tab_predict"), tr("tab_region"), tr("tab_about"), tr("tab_guide")])
+tab1, tab2, tab3, tab4 = st.tabs(
+    [tr("tab_predict"), tr("tab_region"), tr("tab_about"), tr("tab_guide")]
+)
 
 # =========================================================
 # TAB 1 — PREDICTION
@@ -697,7 +718,12 @@ with tab1:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button(tr("calculate"), use_container_width=True):
+    # Button: do NOT pass use_container_width inside a column — use st.columns trick
+    btn_col, _ = st.columns([1, 3])
+    with btn_col:
+        calculate = st.button(tr("calculate"), use_container_width=True)
+
+    if calculate:
         x_raw = build_features(temp, rain, snow, soil_percent, river, city)
         x_scaled = scaler.transform(x_raw)
         x_tensor = torch.tensor(x_scaled, dtype=torch.float32)
@@ -720,9 +746,16 @@ with tab1:
             unsafe_allow_html=True,
         )
 
-        st.markdown(f"<div class='small-note' style='margin-top:0.65rem;'>{tr('risk_hint')}</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='small-note' style='margin-top:0.65rem;'>{tr('risk_hint')}</div>",
+            unsafe_allow_html=True,
+        )
 
-        st.markdown(f"<div class='section-title' style='margin-top:1.3rem;'>{tr('section_results')}</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='section-title' style='margin-top:1.3rem;'>{tr('section_results')}</div>",
+            unsafe_allow_html=True,
+        )
+
         m1, m2, m3 = st.columns(3)
         snowmelt_value = round(max(0.0, temp) * snow * 0.12, 1)
         precip7_value = round(rain * 7.0, 1)
@@ -734,7 +767,11 @@ with tab1:
         with m3:
             st.metric(tr("metric_saturation"), f"{saturation_value}")
 
-        st.markdown(f"<div class='section-title' style='margin-top:1.3rem;'>{tr('section_charts')}</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='section-title' style='margin-top:1.3rem;'>{tr('section_charts')}</div>",
+            unsafe_allow_html=True,
+        )
+
         factors = {
             tr("temp"): min(max(abs(temp) / 40.0 * 100.0, 0.0), 100.0),
             tr("rain"): min(rain / 300.0 * 100.0, 100.0),
@@ -744,7 +781,7 @@ with tab1:
         }
 
         fig1, ax1 = plt.subplots(figsize=(8.8, 3.8))
-        ax1.bar(list(factors.keys()), list(factors.values()))
+        ax1.bar(list(factors.keys()), list(factors.values()), color="#111827")
         ax1.set_ylim(0, 100)
         ax1.set_ylabel("%")
         ax1.set_title(tr("section_charts"))
@@ -762,7 +799,7 @@ with tab1:
             sensitivity.append(p)
 
         fig2, ax2 = plt.subplots(figsize=(8.8, 3.6))
-        ax2.plot(rain_grid, sensitivity)
+        ax2.plot(rain_grid, sensitivity, color="#111827")
         ax2.set_xlabel(tr("rain"))
         ax2.set_ylabel(f"{tr('risk')}, %")
         ax2.set_title(f"{tr('risk')} / {tr('rain')}")
@@ -778,18 +815,27 @@ with tab2:
     render_card(tr("region_history_title"), tr("region_history_body"))
     render_card(tr("region_operational_title"), tr("region_operational_body"))
 
-    st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>",
+        unsafe_allow_html=True,
+    )
 
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        safe_image("https://commons.wikimedia.org/wiki/Special:FilePath/KZ_Akmola_Region_Relief.png")
-        st.caption(tr("photo_1"))
+        safe_image(
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Kazakhstan_Akmola_Region_relief_map.svg/800px-Kazakhstan_Akmola_Region_relief_map.svg.png",
+            tr("photo_1"),
+        )
     with col_b:
-        safe_image("https://commons.wikimedia.org/wiki/Special:FilePath/Current_situation_about_flood.png")
-        st.caption(tr("photo_2"))
+        safe_image(
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/2024_Kazakhstan_floods.jpg/800px-2024_Kazakhstan_floods.jpg",
+            tr("photo_2"),
+        )
     with col_c:
-        safe_image("https://commons.wikimedia.org/wiki/Special:FilePath/ECDM_20240409_Russia_Kazakhstan_Flood.png")
-        st.caption(tr("photo_3"))
+        safe_image(
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/ECDM_20240409_Russia_Kazakhstan_Flood.png/800px-ECDM_20240409_Russia_Kazakhstan_Flood.png",
+            tr("photo_3"),
+        )
 
 # =========================================================
 # TAB 3 — ABOUT
@@ -802,7 +848,10 @@ with tab3:
     render_card(tr("about_stack_title"), tr("about_stack_body"))
     render_card(tr("about_honesty_title"), tr("about_honesty_body"))
 
-    st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('about_authors_title')}</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='section-title' style='margin-top:1.2rem;'>{tr('about_authors_title')}</div>",
+        unsafe_allow_html=True,
+    )
 
     left, right = st.columns(2)
     with left:
@@ -810,7 +859,10 @@ with tab3:
         render_card(tr("author_2_name"), tr("author_2_body"))
     with right:
         render_card(tr("supervisor_name"), tr("supervisor_body"))
-        render_card(tr("sidebar_note"), f"{tr('sidebar_authors')}<br>{tr('sidebar_supervisor')}")
+        render_card(
+            tr("sidebar_note"),
+            f"{tr('sidebar_authors')}<br>{tr('sidebar_supervisor')}",
+        )
 
     st.markdown(
         "<div style='margin-top:0.5rem;'>"
@@ -828,7 +880,10 @@ with tab3:
 with tab4:
     st.markdown(f"<div class='section-title'>{tr('guide_title')}</div>", unsafe_allow_html=True)
 
-    render_card(tr("guide_title"), f"{tr('guide_step_1')}<br>{tr('guide_step_2')}<br>{tr('guide_step_3')}<br>{tr('guide_step_4')}")
+    render_card(
+        tr("guide_title"),
+        f"{tr('guide_step_1')}<br>{tr('guide_step_2')}<br>{tr('guide_step_3')}<br>{tr('guide_step_4')}",
+    )
     render_card(tr("guide_for_title"), tr("guide_for_body"))
     render_card(tr("guide_benefit_title"), tr("guide_benefit_body"))
     render_card("", tr("guide_note"))
