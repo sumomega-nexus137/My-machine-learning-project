@@ -102,10 +102,10 @@ T = {
         "region_history_body": "В 2024 году паводки в Казахстане стали одними из самых масштабных за последние десятилетия. Для региона также важен опыт 2017 года, когда разливы и разрушения показали уязвимость отдельных населённых пунктов и инженерной инфраструктуры.",
         "region_operational_title": "Оперативное значение",
         "region_operational_body": "Этот интерфейс создан как инструмент ранней оценки риска для служб реагирования, местных органов управления и жителей. Он помогает заранее определить зоны повышенного риска и поддержать решение по эвакуации.",
-        "gallery_title": "Фотоматериалы и карта региона",
-        "photo_1": "Карта рельефа Акмолинской области",
-        "photo_2": "Ситуация с паводками в Казахстане, 2024",
-        "photo_3": "Пример разрушений после наводнения",
+        "gallery_title": "Фотоматериалы разрушений от паводков в Акмолинской Области",
+        
+        
+    
         "about_title": "О проекте ARGUS",
         "about_goal_title": "Цель проекта",
         "about_goal_body": "ARGUS разработан для оценки вероятности затопления по гидрометеорологическим параметрам и для поддержки решений в вопросах предупреждения и эвакуации.",
@@ -173,10 +173,10 @@ T = {
         "region_history_body": "2024 жылы Қазақстандағы су тасқыны соңғы онжылдықтардағы ең ауқымдылардың бірі болды. Сондай-ақ 2017 жылғы жағдай өңірдің жекелеген елді мекендері мен инженерлік инфрақұрылымының осалдығын көрсетті.",
         "region_operational_title": "Жедел маңызы",
         "region_operational_body": "Бұл интерфейс төтенше жағдай қызметтері, жергілікті билік және тұрғындар үшін алдын ала тәуекелді бағалау құралы ретінде жасалған. Ол қауіпті аймақтарды ерте анықтауға және эвакуация туралы шешімді қолдауға көмектеседі.",
-        "gallery_title": "Фотоматериалдар және аймақ картасы",
-        "photo_1": "Ақмола облысының жер бедері картасы",
-        "photo_2": "Қазақстандағы су тасқыны жағдайы, 2024",
-        "photo_3": "Су тасқынынан кейінгі қирау үлгісі",
+        "gallery_title": "Фотоматериалдар Ақмола облысндағы аппатардың",
+    
+        
+        
         "about_title": "ARGUS жобасы туралы",
         "about_goal_title": "Жобаның мақсаты",
         "about_goal_body": "ARGUS гидрометеорологиялық параметрлер бойынша су басу ықтималдығын бағалау және ескерту мен эвакуация бойынша шешім қабылдауды қолдау үшін әзірленді.",
@@ -244,10 +244,10 @@ T = {
         "region_history_body": "In 2024, floods in Kazakhstan were among the most extensive in decades. The 2017 floods also showed how vulnerable some settlements and engineering structures in the region can be.",
         "region_operational_title": "Operational value",
         "region_operational_body": "This interface is designed as an early risk assessment tool for emergency services, local authorities, and residents. It helps identify high-risk areas early and supports evacuation decisions.",
-        "gallery_title": "Regional images and map",
-        "photo_1": "Relief map of Akmola Region",
-        "photo_2": "Flood situation in Kazakhstan, 2024",
-        "photo_3": "Example of post-flood destruction",
+        "gallery_title": "Regional images destruction in Akmola region",
+    
+        
+        
         "about_title": "About ARGUS",
         "about_goal_title": "Project purpose",
         "about_goal_body": "ARGUS was built to estimate flood likelihood from hydro-meteorological inputs and to support warning and evacuation decisions.",
