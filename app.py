@@ -389,5 +389,5 @@ def _generate_training_data(n: int = 12000):
     snow = np.where(rng.random(n) < 0.10, rng.uniform(0, 40, n), snow)
 
     soil = rng.beta(2.4, 2.1, size=n) * 100.0
-    river = rng.normal(loc=155.0, scale=50.0, size=n).clip(0,400)
+    river = rng.normal(loc=155.0, scale=50.0, size=n).clip(0, 400)
     
