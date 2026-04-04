@@ -714,12 +714,23 @@ with tab2:
     st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
 
     col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        show_image("images/map_akmola.png", tr("photo_1"))
-    with col_b:
-        show_image("images/flood_2024.jpg", tr("photo_2"))
-    with col_c:
-        show_image("images/flood_damage.jpg", tr("photo_3"))
+with col_a:
+    safe_image(
+        "https://raw.githubusercontent.com/USERNAME/REPO/main/images/map_akmola.png",
+        tr("photo_1"),
+    )
+
+with col_b:
+    safe_image(
+        "https://raw.githubusercontent.com/USERNAME/REPO/main/images/flood_2024.jpg",
+        tr("photo_2"),
+    )
+
+with col_c:
+    safe_image(
+        "https://raw.githubusercontent.com/USERNAME/REPO/main/images/flood_damage.jpg",
+        tr("photo_3"),
+    )
 
 # =========================================================
 # TAB 3 — ABOUT
