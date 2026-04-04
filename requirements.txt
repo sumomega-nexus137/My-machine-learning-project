@@ -8,3 +8,5 @@ scikit-learn
 plotly
 joblib
 matplotlib
+Pillow
+requests
