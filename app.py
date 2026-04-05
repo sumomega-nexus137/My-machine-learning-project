@@ -659,7 +659,7 @@ with tab2:
         show_image("https://astanatimes.com/wp-content/uploads/2024/04/flood-kazakhstan.jpg", "")
     with col_c:
         show_image("https://www.bellingcat.com/wp-content/uploads/2024/04/Atbasar-flood-comparison.jpg", "")
-        )
+        
 # TAB 3 — ABOUT
 # =========================================================
 with tab3:
