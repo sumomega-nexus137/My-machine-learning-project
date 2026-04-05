@@ -1,26 +1,21 @@
 """
 ARGUS — Flood Risk Prediction System
 Single-file Streamlit app.
-
 Requirements:
     streamlit
     torch
     numpy
     matplotlib
     Pillow
-
 Now using public image URLs (no images/ folder needed)
 """
-
 import os
 import pathlib
-
 import numpy as np
 import streamlit as st
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-
 # =========================================================
 # PAGE CONFIG — must be the very first Streamlit call
 # =========================================================
@@ -30,7 +25,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
 # =========================================================
 # CONSTANTS
 # =========================================================
@@ -38,7 +32,6 @@ CITIES = [
     "Кокшетау", "Степногорск", "Щучинск", "Атбасар",
     "Акколь", "Макинск", "Есиль", "Ерейментау", "Степняк", "Қосшы",
 ]
-
 BASE_FEATURES = [
     "temperature", "rain", "snow", "soil_moisture", "river_level",
     "snow_melt", "precip_3d", "precip_7d", "temp_rain_inter", "soil_river",
@@ -46,20 +39,16 @@ BASE_FEATURES = [
 CITY_FEATURES = [f"city_{c}" for c in CITIES]
 FEATURE_COLUMNS = BASE_FEATURES + CITY_FEATURES
 INPUT_DIM = len(FEATURE_COLUMNS)
-
 MODEL_DIR = "models"
 MODEL_PATH = os.path.join(MODEL_DIR, "argus_model.pt")
 SCALER_PATH = os.path.join(MODEL_DIR, "argus_scaler.npz")
-
 CITY_BIAS = {
     "Кокшетау": 0.10, "Степногорск": 0.08, "Щучинск": 0.12,
-    "Атбасар": 0.28,  "Акколь": 0.16,      "Макинск": 0.18,
-    "Есиль": 0.14,    "Ерейментау": 0.09,  "Степняк": 0.11,
+    "Атбасар": 0.28, "Акколь": 0.16, "Макинск": 0.18,
+    "Есиль": 0.14, "Ерейментау": 0.09, "Степняк": 0.11,
     "Қосшы": 0.07,
 }
-
 LANG_MAP = {"Русский": "ru", "Қазақша": "kk", "English": "en"}
-
 # =========================================================
 # TRANSLATIONS
 # =========================================================
@@ -103,9 +92,9 @@ T = {
         "region_operational_title": "Оперативное значение",
         "region_operational_body": "Этот интерфейс создан как инструмент ранней оценки риска для служб реагирования, местных органов управления и жителей. Он помогает заранее определить зоны повышенного риска и поддержать решение по эвакуации.",
         "gallery_title": "Фотоматериалы разрушений от паводков в Акмолинской Области",
-        
-        
-    
+       
+       
+   
         "about_title": "О проекте ARGUS",
         "about_goal_title": "Цель проекта",
         "about_goal_body": "ARGUS разработан для оценки вероятности затопления по гидрометеорологическим параметрам и для поддержки решений в вопросах предупреждения и эвакуации.",
@@ -174,9 +163,9 @@ T = {
         "region_operational_title": "Жедел маңызы",
         "region_operational_body": "Бұл интерфейс төтенше жағдай қызметтері, жергілікті билік және тұрғындар үшін алдын ала тәуекелді бағалау құралы ретінде жасалған. Ол қауіпті аймақтарды ерте анықтауға және эвакуация туралы шешімді қолдауға көмектеседі.",
         "gallery_title": "Фотоматериалдар Ақмола облысндағы аппатардың",
-    
-        
-        
+   
+       
+       
         "about_title": "ARGUS жобасы туралы",
         "about_goal_title": "Жобаның мақсаты",
         "about_goal_body": "ARGUS гидрометеорологиялық параметрлер бойынша су басу ықтималдығын бағалау және ескерту мен эвакуация бойынша шешім қабылдауды қолдау үшін әзірленді.",
@@ -245,9 +234,9 @@ T = {
         "region_operational_title": "Operational value",
         "region_operational_body": "This interface is designed as an early risk assessment tool for emergency services, local authorities, and residents. It helps identify high-risk areas early and supports evacuation decisions.",
         "gallery_title": "Regional images destruction in Akmola region",
-    
-        
-        
+   
+       
+       
         "about_title": "About ARGUS",
         "about_goal_title": "Project purpose",
         "about_goal_body": "ARGUS was built to estimate flood likelihood from hydro-meteorological inputs and to support warning and evacuation decisions.",
@@ -278,7 +267,6 @@ T = {
         "input_hint": "All values are given in realistic units for the region.",
     },
 }
-
 # =========================================================
 # MODEL / SCALER
 # =========================================================
@@ -286,19 +274,15 @@ class StandardScalerLite:
     def __init__(self):
         self.mean_ = None
         self.scale_ = None
-
     def fit(self, X: np.ndarray):
         self.mean_ = X.mean(axis=0)
         self.scale_ = X.std(axis=0)
         self.scale_[self.scale_ < 1e-8] = 1.0
         return self
-
     def transform(self, X: np.ndarray):
         return (X - self.mean_) / self.scale_
-
     def save(self, path: str):
         np.savez(path, mean=self.mean_, scale=self.scale_)
-
     @classmethod
     def load(cls, path: str):
         data = np.load(path)
@@ -306,8 +290,6 @@ class StandardScalerLite:
         obj.mean_ = data["mean"]
         obj.scale_ = data["scale"]
         return obj
-
-
 class FloodModel(nn.Module):
     def __init__(self, input_dim: int = INPUT_DIM):
         super().__init__()
@@ -324,11 +306,8 @@ class FloodModel(nn.Module):
             nn.ReLU(),
             nn.Linear(32, 1),
         )
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
-
-
 def build_features(temp, rain, snow, soil_percent, river_cm, city) -> np.ndarray:
     soil = float(soil_percent) / 100.0
     snow_melt = max(0.0, float(temp)) * float(snow) * 0.12
@@ -347,30 +326,23 @@ def build_features(temp, rain, snow, soil_percent, river_cm, city) -> np.ndarray
     }
     row = np.array([vals.get(col, 0.0) for col in FEATURE_COLUMNS], dtype=np.float32)
     return row.reshape(1, -1)
-
-
 def _generate_training_data(n: int = 12000):
     rng = np.random.default_rng(42)
     temp = rng.normal(loc=2.0, scale=12.0, size=n).clip(-35, 35)
     warm_mask = rng.random(n) > 0.55
     temp[warm_mask] = rng.uniform(-5, 25, warm_mask.sum())
-
     rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 3000)
     heavy_mask = rng.random(n) < 0.07
     rain[heavy_mask] = rng.uniform(40, 220, heavy_mask.sum())
-
     snow = rng.gamma(shape=2.1, scale=18.0, size=n).clip(0, 300)
     snow = np.where(rng.random(n) < 0.10, rng.uniform(0, 40, n), snow)
-
     soil = rng.beta(2.4, 2.1, size=n) * 100.0
     river = rng.normal(loc=155.0, scale=50.0, size=n).clip(20, 450)
     cities = rng.choice(CITIES, size=n)
-
     X = np.vstack([
         build_features(t, r, s, so, rv, c)
         for t, r, s, so, rv, c in zip(temp, rain, snow, soil, river, cities)
     ])
-
     city_bias = np.array([CITY_BIAS[c] for c in cities], dtype=np.float32)
     snow_melt = np.maximum(temp, 0.0) * snow * 0.12
     risk_signal = (
@@ -384,16 +356,13 @@ def _generate_training_data(n: int = 12000):
     )
     y_prob = 1.0 / (1.0 + np.exp(-(risk_signal - 3.0) / 1.0))
     y = torch.tensor(y_prob, dtype=torch.float32).unsqueeze(1)
-
     scaler = StandardScalerLite().fit(X)
     X_sc = scaler.transform(X)
     X_t = torch.tensor(X_sc, dtype=torch.float32)
-
     mdl = FloodModel(INPUT_DIM)
     optimizer = torch.optim.AdamW(mdl.parameters(), lr=1e-3, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=80)
     criterion = nn.BCEWithLogitsLoss()
-
     mdl.train()
     for _ in range(80):
         optimizer.zero_grad()
@@ -402,11 +371,8 @@ def _generate_training_data(n: int = 12000):
         loss.backward()
         optimizer.step()
         scheduler.step()
-
     mdl.eval()
     return scaler, mdl
-
-
 @st.cache_resource(show_spinner=False)
 def _load_model():
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -424,13 +390,10 @@ def _load_model():
                     os.remove(p)
                 except Exception:
                     pass
-
     scaler, mdl = _generate_training_data()
     torch.save(mdl.state_dict(), MODEL_PATH)
     scaler.save(SCALER_PATH)
     return scaler, mdl
-
-
 # =========================================================
 # CSS
 # =========================================================
@@ -511,32 +474,24 @@ div[data-testid="stSlider"] label { font-size: 0.9rem; font-weight: 600; color: 
 .stButton > button:hover { background: #1f2937; }
 </style>
 """, unsafe_allow_html=True)
-
-
 # =========================================================
 # HELPERS
 # =========================================================
 def tr(key: str) -> str:
     lang = st.session_state.get("lang", "ru")
     return T[lang].get(key, key)
-
-
 def render_card(title: str, body: str):
     st.markdown(
         f'<div class="card"><div class="card-title">{title}</div>'
         f'<div class="card-body">{body}</div></div>',
         unsafe_allow_html=True,
     )
-
-
 def risk_level(prob_pct: float):
     if prob_pct < 30:
         return tr("low"), "#16a34a"
     if prob_pct < 65:
         return tr("medium"), "#d97706"
     return tr("high"), "#dc2626"
-
-
 def show_image(src: str, caption: str = ""):
     """
     Display image from URL or local path.
@@ -566,14 +521,11 @@ def show_image(src: str, caption: str = ""):
             )
             if caption:
                 st.caption(caption)
-
-
 # =========================================================
 # BOOT
 # =========================================================
 with st.spinner("Loading ARGUS model…"):
     scaler, model = _load_model()
-
 # =========================================================
 # SIDEBAR
 # =========================================================
@@ -581,7 +533,6 @@ with st.sidebar:
     st.markdown("<div class='argus-brand'>ARGUS</div>", unsafe_allow_html=True)
     st.markdown("<div class='argus-tagline'>Flood Risk System</div>", unsafe_allow_html=True)
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
-
     # Language selector — static label avoids tr() chicken-and-egg problem
     lang_label = st.selectbox(
         "Язык / Тіл / Language",
@@ -590,68 +541,56 @@ with st.sidebar:
         key="lang_selector",
     )
     st.session_state["lang"] = LANG_MAP[lang_label]
-
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
     city = st.selectbox(tr("sidebar_city"), CITIES, key="city_selector")
-
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"<div class='argus-subtitle'>{tr('app_subtitle')}</div>", unsafe_allow_html=True)
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('sidebar_note')}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('sidebar_authors')}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('sidebar_supervisor')}</div>", unsafe_allow_html=True)
-
 # =========================================================
 # HEADER
 # =========================================================
 st.markdown(f"<div class='argus-brand' style='font-size:3.3rem;'>{tr('app_title')}</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='argus-tagline' style='margin-top:0.4rem;'>{tr('app_tagline')}</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='argus-subtitle'>{tr('app_subtitle')}</div>", unsafe_allow_html=True)
-
 # =========================================================
 # TABS
 # =========================================================
 tab1, tab2, tab3, tab4 = st.tabs([
     tr("tab_predict"), tr("tab_region"), tr("tab_about"), tr("tab_guide"),
 ])
-
 # =========================================================
 # TAB 1 — PREDICTION
 # =========================================================
 with tab1:
     st.markdown(f"<div class='section-title'>{tr('section_predict')}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('input_hint')}</div>", unsafe_allow_html=True)
-
     c1, c2, c3 = st.columns(3)
     with c1:
         temp = st.slider(tr("temp"), -50.0, 40.0, 5.0, step=0.5)
     with c2:
-        rain = st.slider(tr("rain"), 0.0, 300.0, 8.0, step=0.5)
+        rain = st.slider(tr("rain"), 0.0, 2000.0, 8.0, step=0.5)
     with c3:
         snow = st.slider(tr("snow"), 0.0, 300.0, 25.0, step=1.0)
-
     c4, c5 = st.columns(2)
     with c4:
         soil_percent = st.slider(tr("soil"), 0.0, 100.0, 35.0, step=1.0)
     with c5:
         river = st.slider(tr("river"), 0.0, 500.0, 120.0, step=1.0)
-
     st.markdown("<br>", unsafe_allow_html=True)
     btn_col, _ = st.columns([1, 3])
     with btn_col:
         calculate = st.button(tr("calculate"), use_container_width=True)
-
     if calculate:
         x_raw = build_features(temp, rain, snow, soil_percent, river, city)
         x_scaled = scaler.transform(x_raw)
         x_tensor = torch.tensor(x_scaled, dtype=torch.float32)
-
         with torch.no_grad():
             prob = torch.sigmoid(model(x_tensor)).item()
-
         risk_pct = round(prob * 100.0, 1)
         status, color = risk_level(risk_pct)
-
         st.markdown(
             f'<div class="result-panel" style="border-left:6px solid {color};">'
             f'<div class="result-label">{city} — {tr("risk")}</div>'
@@ -661,7 +600,6 @@ with tab1:
             unsafe_allow_html=True,
         )
         st.markdown(f"<div class='small-note' style='margin-top:0.65rem;'>{tr('risk_hint')}</div>", unsafe_allow_html=True)
-
         st.markdown(f"<div class='section-title' style='margin-top:1.3rem;'>{tr('section_results')}</div>", unsafe_allow_html=True)
         m1, m2, m3 = st.columns(3)
         with m1:
@@ -670,9 +608,7 @@ with tab1:
             st.metric(tr("metric_precip7"), f"{round(rain * 7.0, 1)} mm")
         with m3:
             st.metric(tr("metric_saturation"), f"{round((soil_percent / 100.0) * river, 1)}")
-
         st.markdown(f"<div class='section-title' style='margin-top:1.3rem;'>{tr('section_charts')}</div>", unsafe_allow_html=True)
-
         factors = {
             tr("temp"): min(max(abs(temp) / 40.0 * 100.0, 0.0), 100.0),
             tr("rain"): min(rain / 3000.0 * 100.0, 100.0),
@@ -687,7 +623,6 @@ with tab1:
         ax1.set_title(tr("section_charts"))
         ax1.tick_params(axis="x", rotation=12)
         st.pyplot(fig1, clear_figure=True)
-
         sensitivity = []
         rain_grid = np.linspace(0, 300, 50)
         for r in rain_grid:
@@ -696,26 +631,21 @@ with tab1:
             xt = torch.tensor(xs, dtype=torch.float32)
             with torch.no_grad():
                 sensitivity.append(torch.sigmoid(model(xt)).item() * 100.0)
-
         fig2, ax2 = plt.subplots(figsize=(8.8, 3.6))
         ax2.plot(rain_grid, sensitivity, color="#111827")
         ax2.set_xlabel(tr("rain"))
         ax2.set_ylabel(f"{tr('risk')}, %")
         ax2.set_title(f"{tr('risk')} / {tr('rain')}")
         st.pyplot(fig2, clear_figure=True)
-
 # =========================================================
 # TAB 2 — REGION
 # =========================================================
 with tab2:
     st.markdown(f"<div class='section-title'>{tr('region_title')}</div>", unsafe_allow_html=True)
-
     render_card(tr("region_intro_title"), tr("region_intro_body"))
     render_card(tr("region_history_title"), tr("region_history_body"))
     render_card(tr("region_operational_title"), tr("region_operational_body"))
-
     st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
-
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Su_tasqyny.jpg/640px-Su_tasqyny.jpg", tr(""))
@@ -723,20 +653,16 @@ with tab2:
         show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Su_tasqyny_3.jpg/640px-Su_tasqyny_3.jpg", tr(""))
     with col_c:
         show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Su_tasqyny_2.jpg/640px-Su_tasqyny_2.jpg", tr(""))
-
 # =========================================================
 # TAB 3 — ABOUT
 # =========================================================
 with tab3:
     st.markdown(f"<div class='section-title'>{tr('about_title')}</div>", unsafe_allow_html=True)
-
     render_card(tr("about_goal_title"), tr("about_goal_body"))
     render_card(tr("about_model_title"), tr("about_model_body"))
     render_card(tr("about_stack_title"), tr("about_stack_body"))
     render_card(tr("about_honesty_title"), tr("about_honesty_body"))
-
     st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('about_authors_title')}</div>", unsafe_allow_html=True)
-
     left, right = st.columns(2)
     with left:
         render_card(tr("author_1_name"), tr("author_1_body"))
@@ -744,7 +670,6 @@ with tab3:
     with right:
         render_card(tr("supervisor_name"), tr("supervisor_body"))
         render_card(tr("sidebar_note"), f"{tr('sidebar_authors')}<br>{tr('sidebar_supervisor')}")
-
     st.markdown(
         "<div style='margin-top:0.5rem;'>"
         "<span class='tech-pill'>PyTorch</span>"
@@ -754,13 +679,11 @@ with tab3:
         "</div>",
         unsafe_allow_html=True,
     )
-
 # =========================================================
 # TAB 4 — GUIDE
 # =========================================================
 with tab4:
     st.markdown(f"<div class='section-title'>{tr('guide_title')}</div>", unsafe_allow_html=True)
-
     render_card(
         tr("guide_title"),
         f"{tr('guide_step_1')}<br>{tr('guide_step_2')}<br>{tr('guide_step_3')}<br>{tr('guide_step_4')}",
