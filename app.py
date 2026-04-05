@@ -650,7 +650,25 @@ with tab1:
 # =========================================================
 # TAB 2 — REGION
 # =========================================================
-
+# =========================================================
+# TAB 2 — REGION
+# =========================================================
+with tab2:
+    st.markdown(f"<div class='section-title'>{tr('region_title')}</div>", unsafe_allow_html=True)
+    render_card(tr("region_intro_title"), tr("region_intro_body"))
+    render_card(tr("region_history_title"), tr("region_history_body"))
+    render_card(tr("region_operational_title"), tr("region_operational_body"))
+    
+    st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
+    
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        show_image("https://astanatimes.com/wp-content/uploads/2024/04/flood-kazakhstan.jpg", "")
+    with col_b:
+        show_image("https://timesca.com/wp-content/uploads/2024/04/Kazakhstan-floods-2024.jpg", "")
+    with col_c:
+        show_image("https://qaz-media.kz/wp-content/uploads/2024/04/pavodok-2024-lyudi-peredvigayutsya-na-lodkax-po-ulicam-kokshetau-1.jpg", "")
 # =========================================================
 with tab3:
     st.markdown(f"<div class='section-title'>{tr('about_title')}</div>", unsafe_allow_html=True)
