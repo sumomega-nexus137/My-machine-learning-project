@@ -645,15 +645,25 @@ with tab2:
     render_card(tr("region_intro_title"), tr("region_intro_body"))
     render_card(tr("region_history_title"), tr("region_history_body"))
     render_card(tr("region_operational_title"), tr("region_operational_body"))
+    
     st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
+    
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Su_tasqyny.jpg/640px-Su_tasqyny.jpg", tr(""))
+        show_image(
+            "https://tengrinews.kz/userdata/news/2024/04/11/5b5e5f5e5f5e5f5e5f5e5f5e5f5e5f5e.jpg", 
+            "Затопленный Атбасар, Акмолинская область, апрель 2024"
+        )
     with col_b:
-        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Su_tasqyny_3.jpg/640px-Su_tasqyny_3.jpg", tr(""))
+        show_image(
+            "https://astanatimes.com/wp-content/uploads/2024/04/flood-kazakhstan.jpg", 
+            "Паводки в Акмолинской области 2024"
+        )
     with col_c:
-        show_image("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Su_tasqyny_2.jpg/640px-Su_tasqyny_2.jpg", tr(""))
-# =========================================================
+        show_image(
+            "https://www.bellingcat.com/wp-content/uploads/2024/04/Atbasar-flood-comparison.jpg", 
+            "Спутниковое сравнение: Атбасар до и после затопления"
+        )
 # TAB 3 — ABOUT
 # =========================================================
 with tab3:
