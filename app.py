@@ -661,14 +661,6 @@ with tab2:
     
     st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
     
-    col_a, col_b, col_c = st.columns(3)
-    
-    with col_a:
-        show_image("https://astanatimes.com/wp-content/uploads/2024/04/flood-kazakhstan.jpg", "")
-    with col_b:
-        show_image("https://timesca.com/wp-content/uploads/2024/04/Kazakhstan-floods-2024.jpg", "")
-    with col_c:
-        show_image("https://qaz-media.kz/wp-content/uploads/2024/04/pavodok-2024-lyudi-peredvigayutsya-na-lodkax-po-ulicam-kokshetau-1.jpg", "")
 # =========================================================
 with tab3:
     st.markdown(f"<div class='section-title'>{tr('about_title')}</div>", unsafe_allow_html=True)
