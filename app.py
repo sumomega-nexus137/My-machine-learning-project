@@ -659,7 +659,7 @@ with tab2:
     render_card(tr("region_history_title"), tr("region_history_body"))
     render_card(tr("region_operational_title"), tr("region_operational_body"))
     
-    st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
+    
     
 # =========================================================
 with tab3:
