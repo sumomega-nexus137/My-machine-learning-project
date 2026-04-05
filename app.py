@@ -355,7 +355,7 @@ def _generate_training_data(n: int = 12000):
     warm_mask = rng.random(n) > 0.55
     temp[warm_mask] = rng.uniform(-5, 25, warm_mask.sum())
 
-    rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 300)
+    rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 3000)
     heavy_mask = rng.random(n) < 0.07
     rain[heavy_mask] = rng.uniform(40, 220, heavy_mask.sum())
 
