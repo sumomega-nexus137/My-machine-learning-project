@@ -48,6 +48,8 @@ CITY_BIAS = {
     "Есиль": 0.14, "Ерейментау": 0.09, "Степняк": 0.11,
     "Қосшы": 0.07,
 }
+PROJECT_TEAM = "Bolashaq Saraiy"
+PROJECT_LOCATION = "г. Кокшетау"
 LANG_MAP = {"Русский": "ru", "Қазақша": "kk", "English": "en"}
 # =========================================================
 # TRANSLATIONS
@@ -530,11 +532,15 @@ with st.spinner("Loading ARGUS model…"):
 # =========================================================
 # SIDEBAR
 # =========================================================
+# =========================================================
+# SIDEBAR
+# =========================================================
 with st.sidebar:
     st.markdown("<div class='argus-brand'>ARGUS</div>", unsafe_allow_html=True)
     st.markdown("<div class='argus-tagline'>Flood Risk System</div>", unsafe_allow_html=True)
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
-    # Language selector — static label avoids tr() chicken-and-egg problem
+    
+    # Language selector
     lang_label = st.selectbox(
         "Язык / Тіл / Language",
         ["Русский", "Қазақша", "English"],
@@ -542,9 +548,22 @@ with st.sidebar:
         key="lang_selector",
     )
     st.session_state["lang"] = LANG_MAP[lang_label]
+    
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
+    
     city = st.selectbox(tr("sidebar_city"), CITIES, key="city_selector")
+    
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
+    
+    # ←←← НОВОЕ: Информация о команде и Bolashaq Saraiy
+    st.markdown(f"""
+    <div style='background:#f0f4f8; padding:12px; border-radius:12px; margin-bottom:12px;'>
+        <strong>Проект представлен от имени:</strong><br>
+        <span style='color:#1e40af; font-weight:600;'>Bolashaq Saraiy</span><br>
+        <small>г. Кокшетау</small>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown(f"<div class='argus-subtitle'>{tr('app_subtitle')}</div>", unsafe_allow_html=True)
     st.markdown("<hr style='border:none;border-top:1px solid #e5e7eb;margin:1rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-note'>{tr('sidebar_note')}</div>", unsafe_allow_html=True)
