@@ -695,6 +695,13 @@ with tab3:
     with right:
         render_card(tr("supervisor_name"), tr("supervisor_body"))
         render_card(tr("sidebar_note"), f"{tr('sidebar_authors')}<br>{tr('sidebar_supervisor')}")
+    st.markdown(f"""
+    <div style='margin-top:1.5rem; padding:15px; background:#f8fafc; border-radius:12px; border-left:5px solid #1e40af;'>
+        <strong>Проект представлен:</strong><br>
+        Молодёжный центр <strong>Bolashaq Saraiy</strong><br>
+        г. Кокшетау
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown(
         "<div style='margin-top:0.5rem;'>"
         "<span class='tech-pill'>PyTorch</span>"
