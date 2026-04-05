@@ -640,6 +640,9 @@ with tab1:
 # =========================================================
 # TAB 2 — REGION
 # =========================================================
+# =========================================================
+# TAB 2 — REGION
+# =========================================================
 with tab2:
     st.markdown(f"<div class='section-title'>{tr('region_title')}</div>", unsafe_allow_html=True)
     render_card(tr("region_intro_title"), tr("region_intro_body"))
@@ -649,20 +652,13 @@ with tab2:
     st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>", unsafe_allow_html=True)
     
     col_a, col_b, col_c = st.columns(3)
+    
     with col_a:
-        show_image(
-            "https://tengrinews.kz/userdata/news/2024/04/11/5b5e5f5e5f5e5f5e5f5e5f5e5f5e5f5e.jpg", 
-            "Затопленный Атбасар, Акмолинская область, апрель 2024"
-        )
+        show_image("https://tengrinews.kz/userdata/news/2024/04/11/5b5e5f5e5f5e5f5e5f5e5f5e5f5e5f5e.jpg", "")
     with col_b:
-        show_image(
-            "https://astanatimes.com/wp-content/uploads/2024/04/flood-kazakhstan.jpg", 
-            "Паводки в Акмолинской области 2024"
-        )
+        show_image("https://astanatimes.com/wp-content/uploads/2024/04/flood-kazakhstan.jpg", "")
     with col_c:
-        show_image(
-            "https://www.bellingcat.com/wp-content/uploads/2024/04/Atbasar-flood-comparison.jpg", 
-            "Спутниковое сравнение: Атбасар до и после затопления"
+        show_image("https://www.bellingcat.com/wp-content/uploads/2024/04/Atbasar-flood-comparison.jpg", "")
         )
 # TAB 3 — ABOUT
 # =========================================================
