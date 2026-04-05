@@ -675,7 +675,7 @@ with tab1:
 
         factors = {
             tr("temp"): min(max(abs(temp) / 40.0 * 100.0, 0.0), 100.0),
-            tr("rain"): min(rain / 300.0 * 100.0, 100.0),
+            tr("rain"): min(rain / 3000.0 * 100.0, 100.0),
             tr("snow"): min(snow / 300.0 * 100.0, 100.0),
             tr("soil"): soil_percent,
             tr("river"): min(river / 500.0 * 100.0, 100.0),
