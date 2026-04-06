@@ -417,17 +417,26 @@ html, body, [class*="css"] {
 .stApp { background: #ffffff !important; }
 
 /* ---- sidebar ---- */
-section[data-testid="stSidebar"] {
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] > div,
+section[data-testid="stSidebar"] > div:first-child {
     background: #f7f8fa !important;
     border-right: 1px solid #e5e7eb !important;
-    min-width: 280px !important;
 }
-section[data-testid="stSidebar"] * {
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] div {
     color: #111827 !important;
+}
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
 }
 
 /* ---- hide Streamlit chrome ---- */
-#MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
+#MainMenu, footer { visibility: hidden; }
+[data-testid="stToolbar"] { display: none; }
 
 /* ---- header ---- */
 .argus-brand {
@@ -762,12 +771,7 @@ with tab2:
     render_card(tr("region_history_title"),   tr("region_history_body"))
     render_card(tr("region_operational_title"), tr("region_operational_body"))
 
-    st.markdown(f"<div class='section-title' style='margin-top:1.2rem;'>{tr('gallery_title')}</div>",
-                unsafe_allow_html=True)
-    col_a, col_b, col_c = st.columns(3)
-    with col_a: show_image("images/map_akmola.png",   tr("photo_1"))
-    with col_b: show_image("images/flood_2024.jpg",   tr("photo_2"))
-    with col_c: show_image("images/flood_damage.jpg", tr("photo_3"))
+
 
 # =========================================================
 # TAB 3 — ABOUT
