@@ -407,155 +407,79 @@ def _load_model():
 # =========================================================
 st.markdown("""
 <style>
-/* ---- base ---- */
 html, body, [class*="css"] {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                 "Helvetica Neue", Arial, sans-serif !important;
-    background: #ffffff !important;
-    color: #111827 !important;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    background: #ffffff; color: #111827;
 }
-.stApp { background: #ffffff !important; }
-
-/* ---- sidebar ---- */
-section[data-testid="stSidebar"],
-section[data-testid="stSidebar"] > div,
-section[data-testid="stSidebar"] > div:first-child {
-    background: #f7f8fa !important;
-    border-right: 1px solid #e5e7eb !important;
+.stApp { background: #ffffff; }
+section[data-testid="stSidebar"] {
+    background: #f7f8fa; border-right: 1px solid #e5e7eb;
 }
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] div {
-    color: #111827 !important;
-}
-[data-testid="collapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-}
-
-/* ---- hide Streamlit chrome ---- */
-#MainMenu, footer { visibility: hidden; }
-[data-testid="stToolbar"] { display: none; }
-
-/* ---- header ---- */
 .argus-brand {
-    font-size: 3rem; font-weight: 800;
-    letter-spacing: -0.04em; color: #111827 !important; line-height: 1.1;
+    font-size: 2.6rem; font-weight: 800;
+    letter-spacing: -0.04em; color: #111827; line-height: 1;
 }
 .argus-tagline {
-    margin-top: 0.3rem; font-size: 0.78rem; font-weight: 700;
-    color: #374151 !important; letter-spacing: 0.1em; text-transform: uppercase;
+    margin-top: 0.25rem; font-size: 0.82rem; font-weight: 600;
+    color: #374151; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.argus-subtitle {
-    margin-top: 0.4rem; color: #4b5563 !important;
-    font-size: 0.95rem; line-height: 1.6;
-}
-
-/* ---- section title ---- */
+.argus-subtitle { margin-top: 0.4rem; color: #4b5563; font-size: 0.95rem; line-height: 1.6; }
 .section-title {
-    margin: 1.2rem 0 0.8rem; padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e5e7eb;
-    font-size: 1.3rem; font-weight: 700; color: #111827 !important;
+    margin: 1rem 0 1rem; padding-bottom: 0.55rem;
+    border-bottom: 1px solid #d1d5db;
+    font-size: 1.4rem; font-weight: 700; color: #111827;
 }
-
-/* ---- card ---- */
 .card {
-    background: #f9fafb !important;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px; padding: 1rem 1.1rem; margin-bottom: 0.85rem;
-    box-shadow: 0 4px 16px rgba(17,24,39,0.05);
+    background: #f9fafb; border: 1px solid #e5e7eb;
+    border-radius: 18px; padding: 1.1rem 1.15rem; margin-bottom: 0.9rem;
+    box-shadow: 0 6px 24px rgba(17,24,39,0.04);
 }
-.card-title {
-    font-size: 0.98rem; font-weight: 700;
-    color: #111827 !important; margin-bottom: 0.4rem;
-}
-.card-body {
-    color: #374151 !important; font-size: 0.92rem; line-height: 1.7;
-}
-
-/* ---- result panel ---- */
+.card-title { font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 0.45rem; }
+.card-body { color: #374151; font-size: 0.94rem; line-height: 1.7; }
 .result-panel {
-    background: #111827 !important;
-    border-radius: 18px; padding: 1.2rem 1.4rem; margin-top: 1rem;
+    background: #111827; color: #fff;
+    border-radius: 20px; padding: 1.2rem 1.25rem; margin-top: 1rem;
 }
 .result-label {
-    font-size: 0.72rem; letter-spacing: 0.18em;
-    text-transform: uppercase; color: #9ca3af !important; margin-bottom: 0.3rem;
+    font-size: 0.76rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #cbd5e1; margin-bottom: 0.4rem;
 }
-.result-status {
-    font-size: 1.35rem; font-weight: 700; margin-bottom: 0.15rem;
-}
-.result-number {
-    font-size: 4rem; font-weight: 800; line-height: 1; letter-spacing: -0.05em;
-}
-
-/* ---- small note ---- */
-.small-note { color: #6b7280 !important; font-size: 0.8rem; line-height: 1.5; }
-
-/* ---- tech pills ---- */
+.result-status { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.2rem; }
+.result-number { font-size: 4.4rem; font-weight: 800; line-height: 1; letter-spacing: -0.06em; }
+.small-note { color: #6b7280; font-size: 0.82rem; line-height: 1.5; }
 .tech-pill {
-    display: inline-block; background: #111827 !important; color: #fff !important;
-    padding: 0.28rem 0.7rem; border-radius: 999px;
-    margin: 0.2rem 0.2rem 0 0; font-size: 0.73rem; letter-spacing: 0.04em;
+    display: inline-block; background: #111827; color: #fff;
+    padding: 0.3rem 0.75rem; border-radius: 999px;
+    margin: 0.2rem 0.2rem 0 0; font-size: 0.75rem; letter-spacing: 0.04em;
 }
-
-/* ---- bolashaq badge ---- */
-.bolashaq-badge {
-    background: #eff6ff; border: 1px solid #bfdbfe;
-    border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
-    font-size: 0.85rem; color: #1e3a8a !important; line-height: 1.6;
-}
-.bolashaq-badge strong { color: #1e40af !important; }
-
-/* ---- image placeholder ---- */
 .img-placeholder {
     background: #f3f4f6; border: 2px dashed #d1d5db;
     border-radius: 12px; height: 200px;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    color: #9ca3af !important; font-size: 0.85rem;
-    text-align: center; padding: 1rem; gap: 0.4rem;
+    color: #9ca3af; font-size: 0.85rem; text-align: center; padding: 1rem;
+    gap: 0.4rem;
 }
-
-/* ---- tabs ---- */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 0; background: transparent;
-    border-bottom: 2px solid #e5e7eb;
+    gap: 0.25rem; background: transparent; border-bottom: 1px solid #d1d5db;
 }
 .stTabs [data-baseweb="tab"] {
-    font-size: 0.75rem !important; font-weight: 700 !important;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    color: #6b7280 !important; padding: 0.75rem 1.1rem;
-    background: transparent !important; border: none !important;
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #6b7280;
+    padding: 0.8rem 1rem; background: transparent;
 }
 .stTabs [aria-selected="true"] {
     color: #111827 !important;
     border-bottom: 2px solid #111827 !important;
     background: transparent !important;
 }
-
-/* ---- slider labels ---- */
-div[data-testid="stSlider"] label p {
-    font-size: 0.88rem !important; font-weight: 600 !important;
-    color: #374151 !important;
-}
-
-/* ---- button ---- */
+div[data-testid="stSlider"] label { font-size: 0.9rem; font-weight: 600; color: #374151; }
 .stButton > button {
-    width: 100%; height: 3rem; border: none !important;
-    border-radius: 12px !important;
-    background: #111827 !important; color: #ffffff !important;
-    font-weight: 700 !important; font-size: 0.82rem !important;
-    letter-spacing: 0.08em; text-transform: uppercase;
+    width: 100%; height: 3.05rem; border: none;
+    border-radius: 14px; background: #111827; color: #fff;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.stButton > button:hover { background: #1f2937 !important; }
-
-/* ---- selectbox labels ---- */
-div[data-testid="stSelectbox"] label p {
-    font-size: 0.85rem !important; font-weight: 600 !important;
-    color: #374151 !important;
-}
+.stButton > button:hover { background: #1f2937; }
 </style>
 """, unsafe_allow_html=True)
 
