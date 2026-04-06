@@ -432,15 +432,6 @@ section[data-testid="stSidebar"] div {
 [data-testid="collapsedControl"] {
     display: flex !important;
     visibility: visible !important;
-    z-index: 999999 !important;
-    position: fixed !important;
-    top: 12px !important;
-    left: 12px !important;
-    background: #111827 !important;
-    border-radius: 50% !important;
-    width: 42px !important;
-    height: 42px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
 }
 
 /* ---- hide Streamlit chrome ---- */
