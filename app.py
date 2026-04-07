@@ -347,58 +347,62 @@ def build_features(temp, rain, snow, soil_percent, river_cm, city) -> np.ndarray
 def _generate_training_data(n: int = 12000):
     rng = np.random.default_rng(42)
     temp = rng.normal(loc=2.0, scale=12.0, size=n).clip(-35, 35)
-    temp[rng.random(n) > 0.55] = rng.uniform(-5, 25, (rng.random(n) > 0.55).sum())
-    rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 300)
-    rain[rng.random(n) < 0.07] = rng.uniform(40, 220, (rng.random(n) < 0.07).sum())
+    
+    # ←←← THIS WAS THE BUG
+    warm_mask = rng.random(n) > 0.55
+    temp[warm_mask] = rng.uniform(-5, 25, warm_mask.sum())
+    
+    rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 3000)
+    heavy_mask = rng.random(n) < 0.07
+    rain[heavy_mask] = rng.uniform(40, 220, heavy_mask.sum())
+    
     snow = rng.gamma(shape=2.1, scale=18.0, size=n).clip(0, 300)
     snow = np.where(rng.random(n) < 0.10, rng.uniform(0, 40, n), snow)
+    
     soil = rng.beta(2.4, 2.1, size=n) * 100.0
     river = rng.normal(loc=155.0, scale=50.0, size=n).clip(20, 450)
     cities = rng.choice(CITIES, size=n)
-
-    X = np.vstack([build_features(t, r, s, so, rv, c)
-                   for t, r, s, so, rv, c in zip(temp, rain, snow, soil, river, cities)])
-
+    
+    X = np.vstack([
+        build_features(t, r, s, so, rv, c)
+        for t, r, s, so, rv, c in zip(temp, rain, snow, soil, river, cities)
+    ])
+    
     city_bias = np.array([CITY_BIAS[c] for c in cities], dtype=np.float32)
     snow_melt = np.maximum(temp, 0.0) * snow * 0.12
-    risk_signal = (0.024*rain + 0.010*snow + 0.004*snow_melt
-                   + 0.020*np.maximum(0.0, river-120.0)
-                   + 0.90*(soil/100.0) + 0.018*np.maximum(0.0, -temp) + city_bias)
-    y_prob = 1.0 / (1.0 + np.exp(-(risk_signal - 3.0)))
+    
+    risk_signal = (
+        0.024 * rain
+        + 0.010 * snow
+        + 0.004 * snow_melt
+        + 0.020 * np.maximum(0.0, river - 120.0)
+        + 0.90 * (soil / 100.0)
+        + 0.018 * np.maximum(0.0, -temp)
+        + city_bias
+    )
+    
+    y_prob = 1.0 / (1.0 + np.exp(-(risk_signal - 3.0) / 1.0))
     y = torch.tensor(y_prob, dtype=torch.float32).unsqueeze(1)
-
+    
     scaler = StandardScalerLite().fit(X)
-    X_t = torch.tensor(scaler.transform(X), dtype=torch.float32)
+    X_sc = scaler.transform(X)
+    X_t = torch.tensor(X_sc, dtype=torch.float32)
+    
     mdl = FloodModel(INPUT_DIM)
-    opt = torch.optim.AdamW(mdl.parameters(), lr=1e-3, weight_decay=1e-4)
-    sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=80)
-    crit = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.AdamW(mdl.parameters(), lr=1e-3, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=80)
+    criterion = nn.BCEWithLogitsLoss()
+    
     mdl.train()
     for _ in range(80):
-        opt.zero_grad()
-        crit(mdl(X_t), y).backward()
-        opt.step(); sch.step()
+        optimizer.zero_grad()
+        logits = mdl(X_t)
+        loss = criterion(logits, y)
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
+    
     mdl.eval()
-    return scaler, mdl
-
-
-@st.cache_resource(show_spinner=False)
-def _load_model():
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
-        try:
-            scaler = StandardScalerLite.load(SCALER_PATH)
-            mdl = FloodModel(INPUT_DIM)
-            mdl.load_state_dict(torch.load(MODEL_PATH, map_location="cpu", weights_only=True))
-            mdl.eval()
-            return scaler, mdl
-        except Exception:
-            for p in (MODEL_PATH, SCALER_PATH):
-                try: os.remove(p)
-                except: pass
-    scaler, mdl = _generate_training_data()
-    torch.save(mdl.state_dict(), MODEL_PATH)
-    scaler.save(SCALER_PATH)
     return scaler, mdl
 
 
