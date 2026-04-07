@@ -344,33 +344,71 @@ def build_features(temp, rain, snow, soil_percent, river_cm, city) -> np.ndarray
     return row.reshape(1, -1)
 
 
+class StandardScalerLite:
+    def __init__(self):
+        self.mean_ = None
+        self.scale_ = None
+
+    def fit(self, X: np.ndarray):
+        self.mean_ = X.mean(axis=0)
+        self.scale_ = X.std(axis=0)
+        self.scale_[self.scale_ < 1e-8] = 1.0
+        return self
+
+    def transform(self, X: np.ndarray):
+        return (X - self.mean_) / self.scale_
+
+    def save(self, path: str):
+        np.savez(path, mean=self.mean_, scale=self.scale_)
+
+    @classmethod
+    def load(cls, path: str):
+        data = np.load(path)
+        obj = cls()
+        obj.mean_ = data["mean"]
+        obj.scale_ = data["scale"]
+        return obj
+
+
+class FloodModel(nn.Module):
+    def __init__(self, input_dim: int = INPUT_DIM):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Dropout(0.20),
+            nn.Linear(128, 64), nn.BatchNorm1d(64), nn.ReLU(), nn.Dropout(0.15),
+            nn.Linear(64, 32), nn.ReLU(),
+            nn.Linear(32, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
 def _generate_training_data(n: int = 12000):
     rng = np.random.default_rng(42)
     temp = rng.normal(loc=2.0, scale=12.0, size=n).clip(-35, 35)
-    
-    # ←←← THIS WAS THE BUG
     warm_mask = rng.random(n) > 0.55
     temp[warm_mask] = rng.uniform(-5, 25, warm_mask.sum())
-    
+
     rain = rng.gamma(shape=1.4, scale=14.0, size=n).clip(0, 3000)
     heavy_mask = rng.random(n) < 0.07
     rain[heavy_mask] = rng.uniform(40, 220, heavy_mask.sum())
-    
+
     snow = rng.gamma(shape=2.1, scale=18.0, size=n).clip(0, 300)
     snow = np.where(rng.random(n) < 0.10, rng.uniform(0, 40, n), snow)
-    
+
     soil = rng.beta(2.4, 2.1, size=n) * 100.0
     river = rng.normal(loc=155.0, scale=50.0, size=n).clip(20, 450)
     cities = rng.choice(CITIES, size=n)
-    
+
     X = np.vstack([
         build_features(t, r, s, so, rv, c)
         for t, r, s, so, rv, c in zip(temp, rain, snow, soil, river, cities)
     ])
-    
+
     city_bias = np.array([CITY_BIAS[c] for c in cities], dtype=np.float32)
     snow_melt = np.maximum(temp, 0.0) * snow * 0.12
-    
+
     risk_signal = (
         0.024 * rain
         + 0.010 * snow
@@ -380,19 +418,19 @@ def _generate_training_data(n: int = 12000):
         + 0.018 * np.maximum(0.0, -temp)
         + city_bias
     )
-    
+
     y_prob = 1.0 / (1.0 + np.exp(-(risk_signal - 3.0) / 1.0))
     y = torch.tensor(y_prob, dtype=torch.float32).unsqueeze(1)
-    
+
     scaler = StandardScalerLite().fit(X)
     X_sc = scaler.transform(X)
     X_t = torch.tensor(X_sc, dtype=torch.float32)
-    
+
     mdl = FloodModel(INPUT_DIM)
     optimizer = torch.optim.AdamW(mdl.parameters(), lr=1e-3, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=80)
     criterion = nn.BCEWithLogitsLoss()
-    
+
     mdl.train()
     for _ in range(80):
         optimizer.zero_grad()
@@ -401,8 +439,33 @@ def _generate_training_data(n: int = 12000):
         loss.backward()
         optimizer.step()
         scheduler.step()
-    
+
     mdl.eval()
+    return scaler, mdl
+
+
+@st.cache_resource(show_spinner=False)
+def _load_model():
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
+        try:
+            scaler = StandardScalerLite.load(SCALER_PATH)
+            mdl = FloodModel(INPUT_DIM)
+            state = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
+            mdl.load_state_dict(state)
+            mdl.eval()
+            return scaler, mdl
+        except Exception:
+            for p in (MODEL_PATH, SCALER_PATH):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+
+    # Generate fresh model
+    scaler, mdl = _generate_training_data()
+    torch.save(mdl.state_dict(), MODEL_PATH)
+    scaler.save(SCALER_PATH)
     return scaler, mdl
 
 
